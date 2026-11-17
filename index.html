@@ -116,7 +116,25 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 .hpbox.enemy{right:110px;top:6%}
 .hpbox.partner{left:4%;top:6%}
 .bar{height:clamp(12px,2vmin,18px);background:#e3defa;border-radius:99px;overflow:hidden;margin-top:.4vmin}
-.bar i{display:block;height:100%;width:100%;background:var(--good);border-radius:99px;transition:width .5s}
+.bar{position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;width:100%;background:var(--good);border-radius:99px;transition:width .35s}
+.bar i.ghost{background:#ff4d5e;transition:width .7s ease-in .45s}
+.hpnum{font-size:.7em;font-weight:900;margin-top:.2vmin;font-variant-numeric:tabular-nums}
+.hpbox.hit{animation:boxhit .5s}
+@keyframes boxhit{0%,100%{transform:none}25%{transform:translateX(-6px);background:#ffd6dc}75%{transform:translateX(6px);background:#ffd6dc}}
+.mon svg.hurt{animation:hurt .9s}
+@keyframes hurt{0%,30%,60%{filter:brightness(1.4) sepia(1) saturate(8) hue-rotate(-40deg)}15%,45%,75%{filter:brightness(2.5)}100%{filter:none}}
+.mon.knockR{animation:knockR .5s ease-out}
+@keyframes knockR{30%{transform:translateX(18%) rotate(8deg)}100%{transform:none}}
+.mon.knockL{animation:knockL .5s ease-out}
+@keyframes knockL{30%{transform:translateX(-18%) rotate(-8deg)}100%{transform:none}}
+.dmg{position:absolute;z-index:9;font-weight:900;color:#ff2d48;-webkit-text-stroke:4px #fff;paint-order:stroke fill;pointer-events:none;
+  font-size:clamp(40px,9vmin,90px);line-height:1;animation:dmgUp 1.3s forwards;white-space:nowrap}
+@keyframes dmgUp{0%{opacity:0;transform:translate(-50%,0) scale(.3)}15%{opacity:1;transform:translate(-50%,-10px) scale(1.35)}30%{transform:translate(-50%,-14px) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-70px)}}
+.dmg small{display:block;font-size:.42em;-webkit-text-stroke:3px #fff;color:#ff7a3d;text-align:center}
+#eStatus{position:absolute;right:10%;top:12%;width:20%;text-align:center;font-size:clamp(26px,5vmin,48px);z-index:4;pointer-events:none}
+#eStatus.dizzy{animation:dizzy 1.2s linear infinite}
+@keyframes dizzy{0%{transform:rotate(0) translateX(10px) rotate(0)}100%{transform:rotate(360deg) translateX(10px) rotate(-360deg)}}
 #hearts{font-size:clamp(18px,3vmin,28px);letter-spacing:.1em}
 .qcount{font-size:.75em;opacity:.7;font-weight:700}
 .shake{animation:shake .45s}
@@ -286,11 +304,12 @@ button.pill{font:inherit;font-weight:800;color:var(--ink)}
 <section id="battle" class="screen">
   <div class="arena" id="arena">
     <div class="plat e"></div><div class="plat p"></div>
-    <div class="hpbox enemy"><span id="eName"></span> <span class="qcount" id="qCount"></span><div class="bar"><i id="eHp"></i></div></div>
+    <div class="hpbox enemy"><span id="eName"></span> <span class="qcount" id="qCount"></span><div class="bar"><i class="ghost" id="eHpGhost"></i><i id="eHp"></i></div><div class="hpnum" id="eHpNum"></div></div>
     <div class="mon enemy" id="eMon"></div>
     <div class="mon partner" id="pMon"></div>
     <div class="hpbox partner"><span id="pName"></span><div id="hearts"></div></div>
     <div id="ball"></div>
+    <div id="eStatus"></div>
   </div>
   <div class="panel" id="panel">
     <div class="bubble" id="bubble"><span id="qText"></span></div>
@@ -394,13 +413,13 @@ const MONS = {
   summsel: {name:"Summsel",  type:"Käfer",  color:"#ffd23a", belly:"#fff3b0", feats:["bugwings","antenna"], cry:"Summ summ!"},
   pieps:   {name:"Pieps",    type:"Normal", color:"#8fd0ff", belly:"#e6f6ff", feats:["wings","tuft","beak"], cry:"Piep piep!"},
   farbo:   {name:"Farbolino",type:"Psycho", color:"#a46cff", belly:"#e9dcff", feats:["antenna","spots"], cry:"Bunt, bunt, bunt!"},
-  moosling:{name:"Moosling", type:"Pflanze",color:"#7bbf5a", belly:"#e2f5cf", feats:["leaf","bigmouth"], cry:"Raschel raschel!"},
+  moosling:{name:"Moosling", type:"Pflanze",color:"#6fae4c", belly:"#f1e6c8", feats:["leaf","bigmouth"], cry:"Raschel raschel!"},
   glitzi:  {name:"Glitzi",   type:"Fee",    color:"#ff9fe0", belly:"#ffe6f7", feats:["cat","sparkle"], cry:"Glitzer-glitzer!"},
   krabbo:  {name:"Krabbo",   type:"Wasser", color:"#ff5c5c", belly:"#ffd0c2", feats:["claws","stalks"], cry:"Klick-klack!"},
   muschli: {name:"Muschli",  type:"Wasser", color:"#ffb7a0", belly:"#fff0e8", feats:["shell"], cry:"Rausch, rausch!"},
-  sandi:   {name:"Sandi",    type:"Boden",  color:"#d9a45b", belly:"#f6dfb5", feats:["spikes","bigmouth"], cry:"Kratz kratz!"},
-  mampfi:  {name:"Mampfi",   type:"Normal", color:"#ffcf3a", belly:"#fff1b5", feats:["bigmouth","tuft"], cry:"Mampf mampf!"},
-  kruemel: {name:"Krümel",   type:"Normal", color:"#b07a45", belly:"#f0d3ad", feats:["cat","spots"], cry:"Knusper knusper!"},
+  sandi:   {name:"Sandi",    type:"Boden",  color:"#7a5c4a", belly:"#c9a98e", feats:["spikes","bigmouth"], cry:"Kratz kratz!"},
+  mampfi:  {name:"Mampfi",   type:"Normal", color:"#f2b45a", belly:"#fff3dc", feats:["bigmouth","tuft"], cry:"Mampf mampf!"},
+  kruemel: {name:"Krümel",   type:"Normal", color:"#6b4a2e", belly:"#f0d3ad", feats:["cat","spots"], cry:"Knusper knusper!"},
   beerli:  {name:"Beerli",   type:"Fee",    color:"#8e5bd6", belly:"#e3d2ff", feats:["tuft","sparkle"], cry:"Beeren-Power!"},
   ratter:  {name:"Ratterix", type:"Elektro",color:"#8fa3b8", belly:"#dfe8f1", feats:["bolt","square"], cry:"Ratter-ratter!"},
   blinki:  {name:"Blinki",   type:"Elektro",color:"#ffd400", belly:"#fff6b0", feats:["square","antenna"], cry:"Blink-blink!"},
@@ -428,44 +447,158 @@ const EVO_NACH = [3,5];   // nach so vielen Siegen entwickelt sich der Partner
 const START = {x:8, y:92};
 
 /* ============ MONSTER ZEICHNEN (SVG) ============ */
+/* Jeder Wortling hat eine eigene Körperform: [Bauart, Stufe, Akzentfarbe] */
+const ART={
+  funki:["fox",1,"#ffcf3a"], flammfunk:["fox",2,"#ffcf3a"], infernox:["fox",3,"#ffcf3a"],
+  plitsch:["axo",1,"#ff9fc8"], platschwal:["axo",2,"#ff9fc8"], tsunamor:["axo",3,"#7fe0ff"],
+  knospi:["sprout",1,"#ff8fc8"], bluetenzahn:["sprout",2,"#ff8fc8"], florados:["sprout",3,"#ff8fc8"],
+  hoppel:["bunny"], summsel:["bee"], pieps:["bird"], farbo:["chamel",1,"#ffd400"], moosling:["mush"], glitzi:["star"],
+  krabbo:["crab"], muschli:["snail",1,"#f7c38a"], sandi:["mole"], mampfi:["hamster"], kruemel:["hedge"], beerli:["berry"],
+  ratter:["robot"], blinki:["bulb"], brummo:["rhino"], lexikus:["dragon"],
+};
+const DK="#2b2350";
+const G=s=>`<g stroke="${DK}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">${s}</g>`;
+const eye=(x,y,r=10)=>`<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${r*1.15}" fill="#fff" stroke="${DK}" stroke-width="2.5"/><circle cx="${x-r*.15}" cy="${y+r*.15}" r="${r*.62}" fill="${DK}"/><circle cx="${x-r*.38}" cy="${y-r*.18}" r="${r*.24}" fill="#fff"/>`;
+const brows=(x1,y1,x2,y2,r=10)=>`<path d="M${x1-r} ${y1-r*1.7} L${x1+r} ${y1-r*1.2} M${x2+r} ${y2-r*1.7} L${x2-r} ${y2-r*1.2}" stroke="${DK}" stroke-width="5" stroke-linecap="round"/>`;
+const smile=(x,y,w=8)=>`<path d="M${x-w} ${y} Q${x} ${y+w} ${x+w} ${y}" stroke="${DK}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+const cheek=(x,y)=>`<ellipse cx="${x}" cy="${y}" rx="8" ry="5" fill="#ff7ab8" opacity=".5"/>`;
+const starPath=(cx,cy,R,r,n=5)=>{let p="";for(let i=0;i<n*2;i++){const a=-Math.PI/2+i*Math.PI/n,rr=i%2?r:R;p+=(i?"L":"M")+(cx+Math.cos(a)*rr).toFixed(1)+" "+(cy+Math.sin(a)*rr).toFixed(1);}return p+"Z";};
+const sparkles=`<g fill="#fff6a8" stroke="#e6b800" stroke-width="2"><path d="M28 60 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5z"/><path d="M170 140 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4z"/><path d="M162 44 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z"/></g>`;
+
+const DRAW={
+  fox(c,b,a,s){ const d=shade(c,-30); let o="";
+    if(s>=3) o+=G(`<path d="M118 112 Q140 40 196 44 Q172 66 184 92 Q160 88 152 118Z" fill="${d}"/>`);
+    o+=G(`<path d="M140 145 Q190 140 182 92 Q168 118 138 128Z" fill="${c}"/>`);
+    o+=`<path d="M182 98 Q162 76 178 48 Q182 66 194 58 Q200 84 182 98Z" fill="${a}" stroke="${DK}" stroke-width="3"/><path d="M182 92 Q174 80 180 66 Q187 80 182 92Z" fill="#ff5c2b"/>`;
+    o+=G(`<rect x="128" y="152" width="16" height="30" rx="8" fill="${d}"/><rect x="146" y="148" width="16" height="32" rx="8" fill="${d}"/>`);
+    o+=G(`<ellipse cx="115" cy="142" rx="45" ry="30" fill="${c}"/>`)+`<ellipse cx="102" cy="152" rx="24" ry="14" fill="${b}"/>`;
+    o+=G(`<rect x="76" y="150" width="16" height="34" rx="8" fill="${c}"/><rect x="100" y="154" width="16" height="30" rx="8" fill="${c}"/>`);
+    if(s>=2) o+=G(`<path d="M58 112 L70 142 L82 124 L94 148 L104 122 L120 140 L116 106Z" fill="${a}"/>`);
+    o+=G(`<path d="M50 74 L40 28 L74 60Z" fill="${c}"/><path d="M88 60 L114 28 L106 78Z" fill="${c}"/>`)+`<path d="M53 66 L47 42 L66 60Z" fill="${a}"/><path d="M93 60 L107 42 L104 70Z" fill="${a}"/>`;
+    if(s>=3) o+=G(`<path d="M62 62 Q48 34 64 18 Q66 42 76 58Z" fill="#fff3c4"/><path d="M92 58 Q100 28 120 22 Q108 44 102 64Z" fill="#fff3c4"/>`);
+    o+=G(`<circle cx="76" cy="96" r="36" fill="${c}"/>`)+G(`<ellipse cx="50" cy="112" rx="20" ry="14" fill="${b}"/>`)+`<circle cx="33" cy="107" r="6" fill="${DK}"/>`;
+    return o+eye(62,90,9)+eye(88,88,9)+(s>=2?brows(62,90,88,88,9):"")+smile(52,122,7)+cheek(98,108); },
+  axo(c,b,a,s){ const d=shade(c,-30); let o="";
+    o+=G(`<path d="M135 150 Q194 156 192 110 Q174 138 135 132Z" fill="${c}"/>`)+`<path d="M150 138 Q178 130 188 110" stroke="${a}" stroke-width="7" fill="none" stroke-linecap="round"/>`;
+    o+=G(`<rect x="92" y="160" width="14" height="24" rx="7" fill="${d}"/><rect x="132" y="160" width="14" height="24" rx="7" fill="${d}"/>`);
+    if(s>=2) o+=G(`<path d="M96 128 Q122 92 156 130Z" fill="${a}"/>`);
+    o+=G(`<ellipse cx="118" cy="150" rx="42" ry="26" fill="${c}"/>`)+`<ellipse cx="110" cy="160" rx="26" ry="12" fill="${b}"/>`;
+    o+=G(`<rect x="76" y="160" width="14" height="24" rx="7" fill="${c}"/><rect x="116" y="162" width="14" height="22" rx="7" fill="${c}"/>`);
+    [[36,80,-35],[28,100,0],[36,120,35],[124,80,35],[132,100,0],[124,120,-35]].forEach(([x,y,r])=>o+=G(`<ellipse cx="${x}" cy="${y}" rx="17" ry="7" fill="${a}" transform="rotate(${r} ${x} ${y})"/>`));
+    if(s>=3) o+=G(`<path d="M46 76 L56 44 L70 66 L80 34 L90 66 L104 44 L114 76Z" fill="${a}"/>`);
+    o+=G(`<ellipse cx="80" cy="102" rx="46" ry="38" fill="${c}"/>`);
+    return o+eye(64,98,9)+eye(96,98,9)+(s>=2?brows(64,98,96,98,9):"")+`<path d="M64 118 Q80 130 96 118" stroke="${DK}" stroke-width="4" fill="none" stroke-linecap="round"/>`+cheek(52,114)+cheek(108,114); },
+  sprout(c,b,a,s){ let o="";
+    o+=G(`<ellipse cx="80" cy="182" rx="16" ry="8" fill="${shade(c,-30)}"/><ellipse cx="120" cy="182" rx="16" ry="8" fill="${shade(c,-30)}"/>`);
+    if(s>=2) o+=G(`<path d="M54 122 Q22 112 16 90 Q42 96 58 110Z" fill="#3fbf3c"/><path d="M146 122 Q178 112 184 90 Q158 96 142 110Z" fill="#3fbf3c"/>`);
+    if(s>=3) o+=G(`<path d="M60 70 L40 40 M140 70 L160 40" stroke="#8a5a2b" stroke-width="8"/>`)+G([[64,62,26],[100,44,32],[136,62,26],[82,36,20],[118,36,20]].map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="#3fbf3c"/>`).join(""));
+    o+=G(`<path d="M100 62 C150 62 160 178 100 180 C40 178 50 62 100 62Z" fill="${c}"/>`)+`<ellipse cx="100" cy="148" rx="28" ry="24" fill="${b}"/>`;
+    if(s===1) o+=G(`<path d="M100 64 Q98 48 102 36" fill="none" stroke-width="5"/><path d="M101 40 Q120 12 148 22 Q136 48 101 40Z" fill="#3fbf3c"/><path d="M99 44 Q78 20 54 32 Q70 54 99 44Z" fill="#5fd35a"/>`);
+    if(s===2) o+=G([0,60,120,180,240,300].map(r=>`<ellipse cx="100" cy="34" rx="12" ry="20" fill="${a}" transform="rotate(${r} 100 56)"/>`).join("")+`<circle cx="100" cy="56" r="14" fill="#ffd400"/>`);
+    if(s===3) o+=`<circle cx="74" cy="46" r="6" fill="${a}"/><circle cx="122" cy="30" r="6" fill="${a}"/><circle cx="140" cy="66" r="6" fill="#ffd400"/><circle cx="98" cy="40" r="6" fill="#ffd400"/>`;
+    return o+eye(86,112,10)+eye(116,112,10)+(s>=2?brows(86,112,116,112,10):"")+smile(101,134,8)+cheek(72,128)+cheek(130,128); },
+  bunny(c,b){ let o="";
+    o+=G(`<ellipse cx="78" cy="50" rx="13" ry="38" fill="${c}" transform="rotate(-10 78 50)"/><ellipse cx="122" cy="50" rx="13" ry="38" fill="${c}" transform="rotate(10 122 50)"/>`)+`<ellipse cx="78" cy="52" rx="6" ry="26" fill="${b}" transform="rotate(-10 78 52)"/><ellipse cx="122" cy="52" rx="6" ry="26" fill="${b}" transform="rotate(10 122 52)"/>`;
+    o+=G(`<circle cx="156" cy="160" r="14" fill="#fff"/><ellipse cx="72" cy="182" rx="22" ry="10" fill="${c}"/><ellipse cx="128" cy="182" rx="22" ry="10" fill="${c}"/>`);
+    o+=G(`<ellipse cx="100" cy="150" rx="44" ry="36" fill="${c}"/>`)+`<ellipse cx="100" cy="158" rx="26" ry="22" fill="${b}"/>`+G(`<circle cx="100" cy="98" r="38" fill="${c}"/>`);
+    return o+eye(84,94,9)+eye(116,94,9)+`<path d="M94 106 L106 106 L100 113Z" fill="#ff6fa0"/><rect x="94" y="118" width="6" height="9" fill="#fff" stroke="${DK}" stroke-width="2"/><rect x="100" y="118" width="6" height="9" fill="#fff" stroke="${DK}" stroke-width="2"/><path d="M92 116 Q100 120 108 116" stroke="${DK}" stroke-width="3" fill="none"/><path d="M72 108 L54 104 M72 113 L54 116 M128 108 L146 104 M128 113 L146 116" stroke="${DK}" stroke-width="2"/>`+cheek(74,114)+cheek(126,114); },
+  bee(c,b){ let o="";
+    o+=G(`<ellipse cx="108" cy="80" rx="20" ry="34" fill="#e8f7ff" opacity=".9" transform="rotate(-25 108 80)"/><ellipse cx="140" cy="86" rx="18" ry="30" fill="#e8f7ff" opacity=".9" transform="rotate(25 140 86)"/>`);
+    o+=G(`<path d="M158 136 L186 144 L158 154Z" fill="${DK}"/><path d="M80 176 L76 190 M104 180 L104 192 M128 178 L132 190" stroke-width="5"/>`);
+    o+=G(`<ellipse cx="110" cy="140" rx="52" ry="44" fill="${c}"/>`)+`<path d="M118 100 Q128 140 118 180" stroke="${DK}" stroke-width="13" fill="none"/><path d="M142 108 Q150 140 142 172" stroke="${DK}" stroke-width="11" fill="none"/>`;
+    o+=G(`<path d="M74 104 Q62 80 50 70 M90 98 Q86 74 82 60" fill="none"/>`)+`<circle cx="49" cy="68" r="7" fill="${DK}"/><circle cx="82" cy="58" r="7" fill="${DK}"/>`;
+    return o+eye(70,132,10)+eye(96,128,10)+smile(80,154,7)+cheek(60,150); },
+  bird(c,b){ const d=shade(c,-35); let o="";
+    o+=G(`<path d="M140 128 L192 104 L182 128 L196 138 L178 148 L140 152Z" fill="${d}"/>`);
+    o+=`<path d="M92 168 L92 188 M84 190 L100 190 M118 168 L118 188 M110 190 L126 190" stroke="#ff9a1f" stroke-width="5" stroke-linecap="round"/>`;
+    o+=G(`<path d="M86 86 Q80 60 96 56 Q94 72 102 82 Q106 62 120 64 Q108 78 106 88Z" fill="${d}"/>`);
+    o+=G(`<ellipse cx="108" cy="128" rx="52" ry="46" fill="${c}"/>`)+`<ellipse cx="94" cy="142" rx="30" ry="28" fill="${b}"/>`;
+    o+=G(`<path d="M112 118 Q152 108 160 140 Q132 152 110 142Z" fill="${d}"/><path d="M58 110 L34 120 L58 130Z" fill="#ffb02e"/>`);
+    return o+eye(70,104,9)+eye(96,102,9)+cheek(64,124); },
+  chamel(c,b,a){ let o="";
+    o+=`<path d="M150 140 Q190 140 188 110 Q186 88 166 92 Q150 96 156 112 Q162 122 172 114" stroke="${DK}" stroke-width="21" fill="none" stroke-linecap="round"/><path d="M150 140 Q190 140 188 110 Q186 88 166 92 Q150 96 156 112 Q162 122 172 114" stroke="${c}" stroke-width="14" fill="none" stroke-linecap="round"/>`;
+    o+=G(`<path d="M86 160 L80 184 M138 160 L144 184 M104 166 L104 186 M124 166 L122 186" stroke="${shade(c,-30)}" stroke-width="10"/>`);
+    o+=G(`<path d="M70 114 L80 98 L92 110 L104 94 L116 110 L128 96 L142 116Z" fill="${a}"/><ellipse cx="112" cy="140" rx="48" ry="30" fill="${c}"/>`);
+    o+=`<circle cx="102" cy="132" r="7" fill="#ffd400"/><circle cx="130" cy="140" r="6" fill="#3ec7ff"/><circle cx="118" cy="156" r="7" fill="#ff7ab8"/><circle cx="142" cy="124" r="5" fill="#3fbf3c"/>`;
+    o+=G(`<path d="M34 142 Q30 100 74 98 Q102 104 98 142Z" fill="${c}"/><path d="M58 102 Q72 66 100 100Z" fill="${c}"/><circle cx="70" cy="116" r="17" fill="${shade(c,15)}"/>`);
+    return o+eye(70,116,10)+`<path d="M38 136 Q58 144 80 134" stroke="${DK}" stroke-width="4" fill="none" stroke-linecap="round"/>`; },
+  mush(c,b){ let o="";
+    o+=G(`<ellipse cx="80" cy="182" rx="15" ry="8" fill="${shade(b,-40)}"/><ellipse cx="120" cy="182" rx="15" ry="8" fill="${shade(b,-40)}"/>`);
+    o+=G(`<path d="M50 140 Q34 132 30 118 M150 140 Q166 132 170 118" stroke="${shade(b,-30)}" stroke-width="9" fill="none"/>`);
+    o+=G(`<path d="M68 106 Q60 180 100 182 Q140 180 132 106Z" fill="${b}"/>`)+G(`<path d="M24 112 Q24 36 100 32 Q176 36 176 112 Q100 130 24 112Z" fill="${c}"/>`);
+    o+=`<circle cx="66" cy="70" r="11" fill="#e8f7c8"/><circle cx="108" cy="54" r="14" fill="#e8f7c8"/><circle cx="146" cy="84" r="10" fill="#e8f7c8"/><circle cx="96" cy="92" r="7" fill="#e8f7c8"/>`;
+    return o+eye(86,140,9)+eye(114,140,9)+`<path d="M88 158 Q100 172 112 158Z" fill="#8a1f3a" stroke="${DK}" stroke-width="3"/>`+cheek(76,156)+cheek(124,156); },
+  star(c,b){ let o="";
+    o+=G(`<ellipse cx="54" cy="96" rx="26" ry="14" fill="#fff" opacity=".85" transform="rotate(-30 54 96)"/><ellipse cx="146" cy="96" rx="26" ry="14" fill="#fff" opacity=".85" transform="rotate(30 146 96)"/>`);
+    o+=G(`<path d="${starPath(100,112,76,38)}" fill="${c}"/>`)+`<circle cx="100" cy="120" r="26" fill="${b}"/>`;
+    return o+eye(88,112,8)+eye(112,112,8)+smile(100,128,7)+cheek(80,126)+cheek(120,126)+sparkles; },
+  crab(c,b){ const d=shade(c,-25); let o="";
+    o+=G(`<path d="M62 150 L30 172 M66 160 L40 186 M138 150 L170 172 M134 160 L160 186" stroke="${d}" stroke-width="8"/>`);
+    o+=G(`<path d="M60 130 Q40 128 36 112 M140 130 Q160 128 164 112" stroke="${c}" stroke-width="12" fill="none"/>`);
+    o+=G(`<circle cx="32" cy="98" r="24" fill="${c}"/><circle cx="168" cy="98" r="24" fill="${c}"/>`)+`<path d="M14 82 L34 98 L12 104Z" fill="#fff"/><path d="M186 82 L166 98 L188 104Z" fill="#fff"/>`;
+    o+=G(`<rect x="78" y="74" width="9" height="40" rx="4" fill="${c}"/><rect x="113" y="74" width="9" height="40" rx="4" fill="${c}"/><ellipse cx="100" cy="140" rx="58" ry="36" fill="${c}"/>`)+`<ellipse cx="100" cy="150" rx="32" ry="16" fill="${b}"/>`;
+    return o+eye(82,72,11)+eye(118,72,11)+smile(100,134,9)+cheek(72,138)+cheek(128,138); },
+  snail(c,b,a){ let o="";
+    o+=G(`<path d="M44 102 L34 64 M62 100 L62 62" stroke="${c}" stroke-width="8"/>`);
+    o+=G(`<path d="M26 182 Q24 140 56 130 L84 132 Q96 168 172 170 Q190 178 172 186 L34 186Z" fill="${c}"/><ellipse cx="52" cy="128" rx="27" ry="29" fill="${c}"/>`);
+    o+=G(`<circle cx="124" cy="122" r="48" fill="${a}"/>`)+`<path d="M124 122 m-6 0 a6 6 0 1 1 12 0 a14 14 0 1 1 -26 0 a22 22 0 1 1 44 0 a30 30 0 1 1 -60 0" fill="none" stroke="${shade(a,-60)}" stroke-width="5"/>`;
+    return o+eye(34,62,9)+eye(62,60,9)+smile(46,140,7)+cheek(66,138); },
+  mole(c,b){ let o="";
+    o+=G(`<ellipse cx="100" cy="182" rx="74" ry="13" fill="#a0703c"/>`)+`<circle cx="52" cy="176" r="5" fill="#7a5228"/><circle cx="150" cy="178" r="6" fill="#7a5228"/>`;
+    o+=G(`<ellipse cx="104" cy="128" rx="54" ry="52" fill="${c}"/>`)+`<ellipse cx="96" cy="146" rx="32" ry="28" fill="${b}"/>`;
+    o+=G(`<path d="M60 64 Q102 28 146 66Z" fill="#ffd23a"/><rect x="58" y="62" width="90" height="10" rx="5" fill="#ffd23a"/><circle cx="102" cy="52" r="8" fill="#fff6b0"/>`);
+    o+=G(`<path d="M44 150 Q26 160 30 178 L52 172 Q60 160 56 150Z" fill="#f6c9a0"/><path d="M156 150 Q176 160 172 178 L150 172 Q142 160 148 150Z" fill="#f6c9a0"/><ellipse cx="74" cy="118" rx="15" ry="11" fill="#ff8fa8"/>`);
+    return o+`<path d="M78 96 Q84 90 90 96 M104 94 Q110 88 116 94" stroke="${DK}" stroke-width="4" fill="none" stroke-linecap="round"/>`+smile(86,136,6)+cheek(110,112); },
+  hamster(c,b){ let o="";
+    o+=G(`<circle cx="62" cy="62" r="17" fill="${c}"/><circle cx="138" cy="62" r="17" fill="${c}"/>`)+`<circle cx="62" cy="62" r="9" fill="#ffb3c8"/><circle cx="138" cy="62" r="9" fill="#ffb3c8"/>`;
+    o+=G(`<ellipse cx="78" cy="182" rx="15" ry="8" fill="${c}"/><ellipse cx="122" cy="182" rx="15" ry="8" fill="${c}"/><ellipse cx="100" cy="120" rx="60" ry="60" fill="${c}"/>`)+`<ellipse cx="100" cy="140" rx="36" ry="34" fill="${b}"/>`;
+    o+=G(`<circle cx="54" cy="118" r="22" fill="${b}"/><circle cx="146" cy="118" r="22" fill="${b}"/><ellipse cx="100" cy="156" rx="10" ry="14" fill="#d9a45b"/><circle cx="88" cy="156" r="7" fill="${c}"/><circle cx="112" cy="156" r="7" fill="${c}"/>`);
+    return o+eye(84,100,8)+eye(116,100,8)+`<ellipse cx="100" cy="112" rx="5" ry="4" fill="#ff6fa0"/><path d="M92 120 Q100 126 108 120" stroke="${DK}" stroke-width="3" fill="none"/><rect x="95" y="122" width="5" height="8" fill="#fff" stroke="${DK}" stroke-width="2"/><rect x="100" y="122" width="5" height="8" fill="#fff" stroke="${DK}" stroke-width="2"/>`; },
+  hedge(c,b){ let o="";
+    o+=G(`<path d="M60 104 L66 62 L84 86 L94 42 L108 80 L124 40 L134 80 L154 54 L152 92 L180 80 L166 110 L192 120 L164 136 L182 158 L150 158Z" fill="${c}"/>`);
+    o+=G(`<ellipse cx="80" cy="182" rx="13" ry="7" fill="${shade(b,-40)}"/><ellipse cx="126" cy="182" rx="13" ry="7" fill="${shade(b,-40)}"/><ellipse cx="108" cy="140" rx="54" ry="40" fill="${shade(c,25)}"/>`);
+    o+=G(`<path d="M30 142 Q40 98 92 102 Q100 158 58 164Z" fill="${b}"/>`)+`<circle cx="30" cy="140" r="7" fill="${DK}"/>`;
+    o+=G(`<circle cx="96" cy="160" r="17" fill="#d9a45b"/>`)+`<circle cx="90" cy="154" r="3" fill="#5a3410"/><circle cx="102" cy="162" r="3" fill="#5a3410"/><circle cx="94" cy="166" r="2.5" fill="#5a3410"/>`;
+    return o+eye(62,118,9)+smile(50,148,6)+cheek(76,136); },
+  berry(c,b){ let o="";
+    o+=G(`<ellipse cx="80" cy="182" rx="14" ry="7" fill="${shade(c,-30)}"/><ellipse cx="120" cy="182" rx="14" ry="7" fill="${shade(c,-30)}"/><circle cx="100" cy="122" r="58" fill="${c}"/>`);
+    o+=`<ellipse cx="74" cy="96" rx="12" ry="18" fill="#fff" opacity=".35" transform="rotate(30 74 96)"/><ellipse cx="100" cy="146" rx="32" ry="24" fill="${b}" opacity=".7"/>`;
+    o+=G(`<path d="${starPath(100,66,22,10)}" fill="#3d8a2e"/><path d="M104 54 Q126 30 150 40 Q136 62 104 54Z" fill="#5fd35a"/>`);
+    return o+eye(86,116,9)+eye(114,116,9)+smile(100,134,7)+cheek(74,132)+cheek(126,132)+sparkles; },
+  robot(c,b){ let o="";
+    o+=G(`<path d="M100 64 L100 40" stroke-width="5"/><path d="M100 14 L90 36 L100 34 L94 52 L112 28 L102 30 L108 14Z" fill="#ffd400"/>`);
+    o+=G(`<circle cx="72" cy="178" r="12" fill="${shade(c,-40)}"/><circle cx="128" cy="178" r="12" fill="${shade(c,-40)}"/><rect x="26" y="110" width="26" height="14" rx="6" fill="${shade(c,-20)}"/><rect x="148" y="110" width="26" height="14" rx="6" fill="${shade(c,-20)}"/>`);
+    o+=G(`<rect x="50" y="64" width="100" height="106" rx="18" fill="${c}"/><rect x="64" y="78" width="72" height="48" rx="10" fill="#1b2a3a"/>`);
+    o+=`<rect x="78" y="90" width="13" height="17" rx="4" fill="#6fffb0"/><rect x="109" y="90" width="13" height="17" rx="4" fill="#6fffb0"/><path d="M86 114 Q100 120 114 114" stroke="#6fffb0" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+    return o+`<circle cx="76" cy="148" r="7" fill="#ff4d5e"/><circle cx="98" cy="148" r="7" fill="#ffd400"/><circle cx="120" cy="148" r="7" fill="#3ec7ff"/>`; },
+  bulb(c,b){ let o="";
+    o+=`<g stroke="#ffd400" stroke-width="6" stroke-linecap="round"><path d="M100 18 L100 4 M46 44 L36 34 M154 44 L164 34 M26 96 L12 96 M174 96 L188 96"/></g><circle cx="100" cy="96" r="64" fill="#fff6a0" opacity=".45"/>`;
+    o+=G(`<ellipse cx="84" cy="184" rx="13" ry="7" fill="#7f8c99"/><ellipse cx="116" cy="184" rx="13" ry="7" fill="#7f8c99"/><rect x="74" y="138" width="52" height="38" rx="8" fill="#9aa7b4"/><path d="M76 150 L124 150 M76 162 L124 162" stroke-width="3"/><circle cx="100" cy="96" r="52" fill="${c}"/>`);
+    o+=`<ellipse cx="78" cy="72" rx="12" ry="18" fill="#fff" opacity=".6" transform="rotate(30 78 72)"/>`;
+    return o+eye(84,96,10)+eye(116,96,10)+`<path d="M86 116 Q100 132 114 116Z" fill="#8a1f3a" stroke="${DK}" stroke-width="3"/>`+cheek(70,112)+cheek(130,112); },
+  rhino(c,b){ const d=shade(c,-30); let o="";
+    o+=G(`<path d="M168 128 Q186 132 184 148" fill="none" stroke-width="5"/><rect x="132" y="150" width="20" height="34" rx="6" fill="${d}"/><rect x="156" y="146" width="20" height="36" rx="6" fill="${d}"/>`);
+    o+=G(`<ellipse cx="122" cy="132" rx="54" ry="38" fill="${c}"/><path d="M90 104 Q124 82 162 108 Q126 120 90 104Z" fill="${shade(c,25)}"/>`)+`<circle cx="104" cy="102" r="3.5" fill="${DK}"/><circle cx="124" cy="98" r="3.5" fill="${DK}"/><circle cx="144" cy="102" r="3.5" fill="${DK}"/>`;
+    o+=G(`<rect x="76" y="150" width="22" height="34" rx="6" fill="${c}"/><rect x="104" y="154" width="22" height="30" rx="6" fill="${c}"/>`);
+    o+=G(`<path d="M84 94 L96 70 L102 100Z" fill="${c}"/><ellipse cx="66" cy="122" rx="38" ry="30" fill="${c}"/><path d="M36 116 Q20 82 38 66 Q46 94 54 110Z" fill="#eef2f5"/><path d="M58 104 Q54 88 62 82 Q66 94 68 104Z" fill="#eef2f5"/>`);
+    return o+eye(72,112,8)+`<path d="M62 98 L82 104" stroke="${DK}" stroke-width="5" stroke-linecap="round"/><path d="M40 138 Q52 144 64 138" stroke="${DK}" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="38" cy="126" r="3" fill="${DK}"/>`; },
+  dragon(c,b){ const d=shade(c,-30); let o="";
+    o+=G(`<path d="M112 104 Q132 18 198 18 Q180 48 192 70 Q168 62 170 92 Q150 84 144 112Z" fill="${d}"/>`);
+    o+=G(`<path d="M140 160 Q194 172 196 128 Q186 150 150 142Z" fill="${c}"/><path d="M190 134 L200 118 L198 140Z" fill="#fff3c4"/>`);
+    o+=G(`<rect x="128" y="160" width="22" height="26" rx="8" fill="${d}"/><ellipse cx="122" cy="142" rx="44" ry="38" fill="${c}"/>`)+`<ellipse cx="108" cy="150" rx="24" ry="28" fill="${b}"/><path d="M90 140 L126 140 M90 152 L126 152 M92 164 L124 164" stroke="${shade(b,-30)}" stroke-width="3"/>`;
+    o+=G(`<rect x="94" y="164" width="22" height="22" rx="8" fill="${c}"/><path d="M100 134 Q76 114 76 84 L104 86 Q106 112 124 120Z" fill="${c}"/>`);
+    o+=G(`<path d="M84 60 Q90 30 112 24 Q100 44 98 64Z" fill="#fff3c4"/><path d="M66 58 Q60 30 76 18 Q78 40 80 58Z" fill="#fff3c4"/><ellipse cx="74" cy="76" rx="32" ry="26" fill="${c}"/><ellipse cx="48" cy="88" rx="20" ry="14" fill="${c}"/>`);
+    o+=G(`<path d="M58 54 L62 34 L72 46 L80 28 L88 46 L98 34 L100 54Z" fill="#ffc83d"/>`)+`<circle cx="38" cy="84" r="3" fill="${DK}"/><circle cx="80" cy="42" r="3.5" fill="#ff4d5e"/>`;
+    o+=G(`<path d="M58 132 L90 124 L90 160 L58 166Z" fill="#fff"/><path d="M90 124 L122 132 L122 168 L90 160Z" fill="#fff"/>`)+`<text x="72" y="152" font-size="18" font-weight="900" fill="#ff4d5e" font-family="sans-serif">A</text><text x="98" y="154" font-size="18" font-weight="900" fill="#1e8ef0" font-family="sans-serif">B</text>`;
+    return o+eye(66,72,9)+eye(88,70,8)+brows(66,72,88,70,8)+`<path d="M34 96 Q46 102 60 96" stroke="${DK}" stroke-width="4" fill="none" stroke-linecap="round"/>`; },
+};
 function monSVG(key){
-  const m = MONS[key], c=m.color, b=m.belly, f=m.feats, dark="#2b2350";
-  let back="", front="", head="";
-  if(f.includes("wings")) back += `<path d="M42 105 Q5 70 12 40 Q35 70 55 80Z" fill="${shade(c,-25)}"/><path d="M158 105 Q195 70 188 40 Q165 70 145 80Z" fill="${shade(c,-25)}"/>`;
-  if(f.includes("bunny")) back += `<ellipse cx="72" cy="38" rx="14" ry="38" fill="${c}"/><ellipse cx="72" cy="40" rx="7" ry="28" fill="${b}"/><ellipse cx="128" cy="38" rx="14" ry="38" fill="${c}"/><ellipse cx="128" cy="40" rx="7" ry="28" fill="${b}"/>`;
-  if(f.includes("flame")) back += `<path d="M100 20 Q80 45 88 62 Q72 55 76 40 Q60 62 80 80 L120 80 Q140 62 124 40 Q128 55 112 62 Q120 45 100 20Z" fill="#ffcf3a"/><path d="M100 40 Q90 58 96 70 L104 70 Q110 58 100 40Z" fill="#ff5c2b"/>`;
-  if(f.includes("fins")) back += `<path d="M48 80 L22 50 L60 62Z" fill="${shade(c,-20)}"/><path d="M152 80 L178 50 L140 62Z" fill="${shade(c,-20)}"/><path d="M100 50 Q112 30 104 22 Q120 30 114 58Z" fill="${shade(c,-20)}"/>`;
-  if(f.includes("leaf")) back += `<path d="M100 62 Q100 45 104 38" stroke="#3d8a2e" stroke-width="5" fill="none"/><path d="M104 40 Q120 10 150 18 Q140 48 104 40Z" fill="#3fbf3c"/><path d="M106 39 Q125 28 142 22" stroke="#2c8a28" stroke-width="3" fill="none"/>`;
-  if(f.includes("antenna")) back += `<path d="M82 62 Q70 35 60 28" stroke="${dark}" stroke-width="4" fill="none"/><circle cx="58" cy="26" r="9" fill="#ffd400"/><path d="M118 62 Q130 35 140 28" stroke="${dark}" stroke-width="4" fill="none"/><circle cx="142" cy="26" r="9" fill="#3ec7ff"/>`;
-  if(f.includes("stalks")) back += `<rect x="72" y="36" width="8" height="30" rx="4" fill="${c}"/><rect x="120" y="36" width="8" height="30" rx="4" fill="${c}"/>`;
-  if(f.includes("claws")) back += `<g fill="${shade(c,-15)}"><circle cx="30" cy="110" r="20"/><circle cx="170" cy="110" r="20"/></g><g fill="#fff"><path d="M18 100 L32 110 L18 116Z"/><path d="M182 100 L168 110 L182 116Z"/></g>`;
-  if(f.includes("tuft")) back += `<path d="M88 64 Q92 40 100 52 Q104 34 112 64Z" fill="${shade(c,-20)}"/>`;
-  if(f.includes("bolt")) back += `<path d="M100 18 L88 50 L100 48 L94 70 L114 40 L102 42 L110 18Z" fill="#ffd400" stroke="${dark}" stroke-width="2"/>`;
-  if(f.includes("horns")) back += `<path d="M66 72 Q50 40 62 22 Q70 50 84 64Z" fill="#fff3c4"/><path d="M134 72 Q150 40 138 22 Q130 50 116 64Z" fill="#fff3c4"/>`;
-  if(f.includes("spikes")) back += `<path d="M52 92 L58 58 L76 76 L88 44 L100 68 L112 44 L124 76 L142 58 L148 92Z" fill="${shade(c,-35)}"/>`;
-  if(f.includes("cat")) back += `<path d="M52 84 L56 40 L88 66Z" fill="${c}"/><path d="M60 74 L62 52 L78 66Z" fill="${b}"/><path d="M148 84 L144 40 L112 66Z" fill="${c}"/><path d="M140 74 L138 52 L122 66Z" fill="${b}"/>`;
-  if(f.includes("bugwings")) back += `<ellipse cx="44" cy="84" rx="30" ry="17" fill="#e8f7ff" opacity=".9" stroke="#9cc9e8" stroke-width="3" transform="rotate(-35 44 84)"/><ellipse cx="156" cy="84" rx="30" ry="17" fill="#e8f7ff" opacity=".9" stroke="#9cc9e8" stroke-width="3" transform="rotate(35 156 84)"/>`;
-  if(f.includes("shell")) back += `<circle cx="146" cy="96" r="44" fill="#f7d7b8" stroke="#c98f63" stroke-width="5"/><path d="M146 96 m-6 0 a6 6 0 1 1 12 0 a14 14 0 1 1 -26 0 a22 22 0 1 1 44 0 a30 30 0 1 1 -60 0" fill="none" stroke="#c98f63" stroke-width="4"/>`;
-  if(f.includes("flower")) back += `<g transform="translate(100 46)">${[0,72,144,216,288].map(a=>`<ellipse cx="0" cy="-17" rx="11" ry="17" fill="#ff8fc8" transform="rotate(${a})"/>`).join("")}<circle r="11" fill="#ffd400"/></g>`;
-  const square = f.includes("square");
-  const body = square
-    ? `<rect x="42" y="62" width="116" height="112" rx="26" fill="${c}"/><rect x="62" y="112" width="76" height="54" rx="16" fill="${b}"/>`
-    : `<ellipse cx="100" cy="122" rx="62" ry="58" fill="${c}"/><ellipse cx="100" cy="140" rx="40" ry="34" fill="${b}"/>`;
-  if(f.includes("spots")) front += `<circle cx="56" cy="110" r="7" fill="#ffd400"/><circle cx="146" cy="100" r="6" fill="#3ec7ff"/><circle cx="142" cy="140" r="8" fill="#ff7ab8"/><circle cx="60" cy="146" r="6" fill="#3fbf3c"/>`;
-  if(f.includes("crown")) front += `<path d="M76 66 L80 40 L92 56 L100 34 L108 56 L120 40 L124 66Z" fill="#ffc83d" stroke="${dark}" stroke-width="2"/><circle cx="100" cy="50" r="4" fill="#ff4d5e"/>`;
-  const feet = `<ellipse cx="72" cy="178" rx="18" ry="9" fill="${shade(c,-25)}"/><ellipse cx="128" cy="178" rx="18" ry="9" fill="${shade(c,-25)}"/>`;
-  const eyes = `<g><ellipse cx="78" cy="104" rx="14" ry="16" fill="#fff"/><ellipse cx="122" cy="104" rx="14" ry="16" fill="#fff"/>
-    <circle cx="81" cy="107" r="8" fill="${dark}"/><circle cx="125" cy="107" r="8" fill="${dark}"/>
-    <circle cx="84" cy="103" r="3" fill="#fff"/><circle cx="128" cy="103" r="3" fill="#fff"/></g>
-    <ellipse cx="60" cy="126" rx="9" ry="6" fill="#ff7ab8" opacity=".55"/><ellipse cx="140" cy="126" rx="9" ry="6" fill="#ff7ab8" opacity=".55"/>`;
-  if(f.includes("sparkle")) front += `<g fill="#fff6a8" stroke="#e6b800" stroke-width="2"><path d="M30 60 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5z"/><path d="M168 140 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4z"/><path d="M160 48 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z"/></g>`;
-  const brows = f.includes("brows") ? `<path d="M62 84 L92 92" stroke="${dark}" stroke-width="6" stroke-linecap="round"/><path d="M138 84 L108 92" stroke="${dark}" stroke-width="6" stroke-linecap="round"/>` : "";
-  const beak = f.includes("beak") ? `<path d="M88 120 L112 120 L100 136Z" fill="#ffb02e" stroke="${dark}" stroke-width="2"/>` : "";
-  const mouth = beak ? beak+brows : brows + (f.includes("bigmouth")
-    ? `<path d="M80 126 Q100 156 120 126Z" fill="#8a1f3a"/><path d="M90 140 Q100 150 110 140" fill="#ff8fa8"/><rect x="92" y="126" width="7" height="7" fill="#fff"/><rect x="101" y="126" width="7" height="7" fill="#fff"/>`
-    : `<path d="M88 128 Q100 140 112 128" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`);
-  return `<svg class="m" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">${back}${feet}${body}${front}${eyes}${mouth}</svg>`;
+  const m=MONS[key], [art,stage=1,acc="#ffcf3a"]=ART[key]||["bunny"];
+  const k = {1:.82,2:.92,3:1}[stage]*(key==="lexikus"?1.1:1);
+  const inner=DRAW[art](m.color,m.belly,acc,stage);
+  return `<svg class="m" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><g transform="translate(100 188) scale(${k}) translate(-100 -188)">${inner}</g></svg>`;
 }
+
 function shade(hex,amt){
   let n=parseInt(hex.slice(1),16),r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;
   const cl=v=>Math.max(0,Math.min(255,v));
@@ -896,7 +1029,10 @@ async function startBattle(i){
   nextQuestion();
 }
 function updateBars(){
-  $("#eHp").style.width=(B.hp/B.max*100)+"%";
+  const pct=B.hp/B.max*100;
+  $("#eHp").style.width=pct+"%"; $("#eHpGhost").style.width=pct+"%";
+  $("#eHpNum").textContent=`KP ${Math.round(pct)} / 100`;
+  const stt=$("#eStatus"); stt.textContent = B.hp<=0?"":pct<=34?"💫 💫":pct<=67?"💦":""; stt.className = pct<=34&&B.hp>0?"dizzy":"";
   $("#eHp").style.background = B.hp/B.max>.5?"var(--good)":B.hp/B.max>.25?"var(--gold)":"var(--bad)";
   $("#hearts").textContent="❤️".repeat(B.hearts)+"🤍".repeat(HERZEN-B.hearts);
   $("#qCount").textContent = `(${B.max-B.hp}/${B.max})`;
@@ -925,11 +1061,17 @@ function addSpeak(word){
   const s=document.createElement("button"); s.className="speak"; s.textContent="🔊"; s.onclick=()=>speak(word);
   $("#bubble").appendChild(s);
 }
+function takeHit(monEl,knock,num,label,box){
+  const svg=monEl.querySelector("svg"); anim(svg,"hurt"); anim(monEl,knock); anim(box,"hit"); arenaShake();
+  const c=monCenter(monEl), d=document.createElement("div"); d.className="dmg"; d.innerHTML=`${num}<small>${label}</small>`;
+  d.style.left=c.x+"px"; d.style.top=(c.y-c.w*.45)+"px"; $("#arena").appendChild(d); setTimeout(()=>d.remove(),1300);
+  burst(["💥","⭐"],c,{n:6,size:c.w*.18,radius:.5,dur:500});
+}
 function popText(txt,color,leftPct,topPct){
   const d=document.createElement("div"); d.className="pop"; d.textContent=txt; if(color)d.style.color=color;
   d.style.left=leftPct+"%"; d.style.top=topPct+"%"; $("#arena").appendChild(d); setTimeout(()=>d.remove(),1000);
 }
-function anim(el,cls){ el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),500); }
+function anim(el,cls,ms=950){ if(!el)return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),ms); }
 
 /* ============ ATTACKEN-ANIMATIONEN ============ */
 function monCenter(el){ const a=$("#arena").getBoundingClientRect(), r=el.getBoundingClientRect(); return {x:r.left-a.left+r.width/2, y:r.top-a.top+r.height*.55, w:r.width}; }
@@ -1026,7 +1168,7 @@ async function answer(btn,o){
     await sleep(500);
     $("#qText").innerHTML=`<b>${MONS[S.partner].name}</b> setzt <b style="color:${pt.color}">${pick(pt.atk)}</b> ein! ${pt.icon}`;
     anim($("#pMon"),"lungeR"); await attackFx(MONS[S.partner].type,$("#pMon"),$("#eMon"));
-    SFX.hit(); anim($("#eMon"),"shake"); anim($("#eMon"),"flash");
+    SFX.hit(); takeHit($("#eMon"),"knockR",`-${Math.round(100/B.max)}`, B.hp===1?"K.O.!":pick(["Treffer!","Volltreffer!","Sehr effektiv!"]), $(".hpbox.enemy"));
     B.hp--; updateBars();
     $("#answers").innerHTML=""; $("#qPic").innerHTML="";
     $("#msg").innerHTML=`<span class="big">${pick(LOB)} 🎉</span><br>${pair}`;
@@ -1041,7 +1183,7 @@ async function answer(btn,o){
     await sleep(450);
     $("#qText").innerHTML=`<b>${MONS[B.mon].name}</b> setzt <b style="color:${et.color}">${pick(et.atk)}</b> ein! ${et.icon}`;
     anim($("#eMon"),"lungeL"); await attackFx(MONS[B.mon].type,$("#eMon"),$("#pMon"));
-    SFX.hit(); anim($("#pMon"),"shake"); popText("💫",null,20,35);
+    SFX.hit(); takeHit($("#pMon"),"knockL","-1 ❤️","Autsch!",$(".hpbox.partner"));
     B.hearts--; updateBars();
     $("#answers").innerHTML=""; $("#qPic").innerHTML="";
     $("#msg").innerHTML=`<span class="big">Fast! 🙂</span><br>Richtig ist: ${pair}<br><small>Das Wort kommt gleich noch einmal.</small>`;
