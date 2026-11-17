@@ -9,6 +9,8 @@ Angriffe. Am Ende gibt es eine Urkunde. Spieldauer: ca. 10 Minuten.
 - **Für das iPad gemacht:** große Knöpfe, Hoch- und Querformat.
 - **Ton:** Die englischen Wörter werden vorgelesen (🔊). Die deutschen Texte kann man sich auch vorlesen lassen.
   Bitte Lautstärke am iPad einschalten und den Lautlos-Schalter ausschalten.
+- **Wie ein Monster-Abenteuer:** Typen (Feuer, Wasser, Pflanze …) mit Attacken, der Partner entwickelt sich nach dem 3. und 5. Sieg,
+  an jedem Ort taucht zufällig einer von 3 Wortlingen auf, Wortling-Lexikon mit 25 Nummern zum Sammeln, eigene Kampf- und Kartenmusik.
 - **Niemand verliert:** Bei falschen Antworten wird das richtige Wort gezeigt und später noch einmal gefragt.
   Sind alle Herzen weg, gibt Professorin Eule einen Heiltrank.
 

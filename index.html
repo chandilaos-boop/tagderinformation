@@ -183,6 +183,31 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 .confetti{position:absolute;top:-10vh;font-size:5vmin;animation:fall linear forwards;z-index:1;pointer-events:none}
 @keyframes fall{to{transform:translateY(120vh) rotate(720deg)}}
 
+.tbadge{display:inline-block;font-size:.7em;padding:.05em .55em;border-radius:99px;color:#fff;vertical-align:middle;margin-left:.3em}
+.dexno{font-size:.7em;opacity:.6;margin-right:.2em}
+.enterR{animation:enterR .8s ease-out}
+@keyframes enterR{from{transform:translateX(120%)}to{transform:none}}
+.enterL{animation:enterL .8s ease-out}
+@keyframes enterL{from{transform:translateX(-140%)}to{transform:none}}
+.banner{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);background:var(--ink);color:#fff;text-align:center;
+  font-size:clamp(24px,5vmin,48px);font-weight:900;padding:1.5vmin;z-index:8;animation:bannerIn 1.6s forwards;pointer-events:none}
+@keyframes bannerIn{0%{clip-path:inset(0 100% 0 0)}20%,80%{clip-path:inset(0 0 0 0);opacity:1}100%{opacity:0}}
+.overlay{position:absolute;inset:0;z-index:55;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:3vmin calc(3vmin + env(safe-area-inset-right)) calc(3vmin + env(safe-area-inset-bottom)) calc(3vmin + env(safe-area-inset-left))}
+.overlay.on{display:flex;animation:fadeIn .3s}
+#evo{background:radial-gradient(circle,#4b3d99,#1c1540);color:#fff}
+#evoMon{width:min(46vmin,360px);aspect-ratio:1}
+#evoMon .m{width:100%;height:100%}
+#evoMon.white .m{filter:brightness(0) invert(1) drop-shadow(0 0 20px #fff)}
+#evoText{font-size:clamp(22px,4.2vmin,40px);font-weight:800;margin:2vmin 0;min-height:2.6em;max-width:900px}
+#lex{background:rgba(43,35,80,.92);color:#fff;justify-content:flex-start;overflow:auto}
+#lex h2{font-size:clamp(26px,5vmin,46px);margin:1vmin 0}
+.dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(96px,15vmin,140px),1fr));gap:1.5vmin;width:100%;max-width:1100px;margin:1vmin 0 2vmin}
+.dexc{background:#fff;color:var(--ink);border-radius:18px;padding:1vmin;font-weight:800;font-size:clamp(12px,1.9vmin,17px)}
+.dexc .m{width:100%;aspect-ratio:1}
+.dexc.unk .m{filter:brightness(0);opacity:.25}
+.dexc.unk{background:#ddd8f5}
+button.pill{font:inherit;font-weight:800;color:var(--ink)}
 #resetBtn{position:absolute;top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));z-index:60;
   background:rgba(255,255,255,.7);border-radius:50%;width:40px;height:40px;font-size:20px;opacity:.6}
 #muteBtn{position:absolute;top:calc(8px + env(safe-area-inset-top));right:calc(56px + env(safe-area-inset-right));z-index:60;
@@ -225,7 +250,7 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
     <span class="pill" id="mapName">🧒</span>
     <span class="sp"></span>
     <span class="pill" id="mapStars">⭐ 0</span>
-    <span class="pill" id="mapCount">📖 0</span>
+    <button class="pill" id="mapCount">📖 Lexikon</button>
   </div>
   <div class="mapArea" id="mapArea"></div>
   <div class="team" id="team"></div>
@@ -266,7 +291,22 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
   </div>
 </div>
 
-<button id="muteBtn" aria-label="Ton an/aus">🔈</button>
+<!-- Entwicklung -->
+<div id="evo" class="overlay">
+  <div id="evoMon"></div>
+  <div id="evoText"></div>
+  <button class="btn" id="evoNext" style="visibility:hidden">Weiter ▶</button>
+</div>
+
+<!-- Lexikon -->
+<div id="lex" class="overlay">
+  <h2>📖 Wortling-Lexikon</h2>
+  <div id="lexInfo" style="font-weight:700;font-size:clamp(16px,2.6vmin,24px)"></div>
+  <div class="dex" id="dex"></div>
+  <button class="btn" id="lexClose">Schließen ✕</button>
+</div>
+
+<button id="muteBtn"aria-label="Ton an/aus">🔈</button>
 <button id="resetBtn" aria-label="Neues Spiel">⟲</button>
 
 <script>
@@ -299,32 +339,66 @@ for (const k in THEMES) THEMES[k].words = THEMES[k].words.map(([en,de,pic])=>({e
 const ALL_WORDS = Object.values(THEMES).flatMap(t=>t.words);
 
 /* ============ WORTLINGE (eigene Monster) ============ */
-const MONS = {
-  funki:  {name:"Funki",   color:"#ff8a3d", belly:"#ffd7a8", feats:["flame"], desc:"mutig & feurig"},
-  plitsch:{name:"Plitsch", color:"#3ea7ff", belly:"#c9ecff", feats:["fins"],  desc:"lustig & schlau"},
-  knospi: {name:"Knospi",  color:"#5cc95a", belly:"#d8f7c4", feats:["leaf"],  desc:"lieb & stark"},
-  hoppel: {name:"Hoppel",  color:"#ff9fcf", belly:"#ffe2f0", feats:["bunny"]},
-  farbo:  {name:"Farbolino",color:"#a46cff",belly:"#e9dcff", feats:["antenna","spots"]},
-  krabbo: {name:"Krabbo",  color:"#ff5c5c", belly:"#ffd0c2", feats:["claws","stalks"]},
-  mampfi: {name:"Mampfi",  color:"#ffcf3a", belly:"#fff1b5", feats:["bigmouth","tuft"]},
-  ratter: {name:"Ratterix",color:"#8fa3b8", belly:"#dfe8f1", feats:["bolt","square"]},
-  lexikus:{name:"Lexikus", color:"#3b3fae", belly:"#b8bdff", feats:["horns","wings","crown"]},
+const TYPEN = {
+  Feuer:  {icon:"🔥", color:"#ff6a2b", atk:["Funkenregen","Flammenwirbel","Glutball","Feuerpuste"]},
+  Wasser: {icon:"💧", color:"#1e8ef0", atk:["Blubberstrahl","Wasserwelle","Sprudelschuss","Regenguss"]},
+  Pflanze:{icon:"🌿", color:"#2fae48", atk:["Blätterwirbel","Rankenhieb","Samenbombe","Blütensturm"]},
+  Normal: {icon:"⭐", color:"#9a8c7a", atk:["Kitzelattacke","Hüpfer","Kuschelstoß"]},
+  Käfer:  {icon:"🐞", color:"#9ab000", atk:["Summ-Angriff","Flügelschlag"]},
+  Psycho: {icon:"🔮", color:"#d64fa0", atk:["Farbblitz","Gedankenwelle"]},
+  Fee:    {icon:"✨", color:"#ff7ad1", atk:["Glitzerstaub","Feenkuss"]},
+  Boden:  {icon:"⛰️", color:"#b8823a", atk:["Sandwirbel","Buddelhieb"]},
+  Elektro:{icon:"⚡", color:"#e6b800", atk:["Donnerfunke","Strom-Kitzler"]},
+  Stahl:  {icon:"⚙️", color:"#6f7f8f", atk:["Eisenkopf","Zahnradwurf"]},
+  Drache: {icon:"🐉", color:"#5a3fd6", atk:["Wortsturm","Drachenbuchstaben","Lexikon-Wirbel"]},
 };
+const MONS = {
+  // Partner + Entwicklungen
+  funki:      {name:"Funki",      type:"Feuer",  color:"#ff8a3d", belly:"#ffd7a8", feats:["flame"], desc:"mutig & feurig", evo:"flammfunk"},
+  flammfunk:  {name:"Flammfunk",  type:"Feuer",  color:"#ff6a2b", belly:"#ffd0a0", feats:["flame","cat","brows"], evo:"infernox"},
+  infernox:   {name:"Infernox",   type:"Feuer",  color:"#e8461e", belly:"#ffc48a", feats:["flame","horns","wings","brows"]},
+  plitsch:    {name:"Plitsch",    type:"Wasser", color:"#3ea7ff", belly:"#c9ecff", feats:["fins"], desc:"lustig & schlau", evo:"platschwal"},
+  platschwal: {name:"Platschwal", type:"Wasser", color:"#2b8ef0", belly:"#c2e6ff", feats:["fins","spikes","brows"], evo:"tsunamor"},
+  tsunamor:   {name:"Tsunamor",   type:"Wasser", color:"#1f6fd1", belly:"#b8dcff", feats:["fins","spikes","horns","brows"]},
+  knospi:     {name:"Knospi",     type:"Pflanze",color:"#5cc95a", belly:"#d8f7c4", feats:["leaf"], desc:"lieb & stark", evo:"bluetenzahn"},
+  bluetenzahn:{name:"Blütenzahn", type:"Pflanze",color:"#45b347", belly:"#d2f2bd", feats:["flower","brows"], evo:"florados"},
+  florados:   {name:"Florados",   type:"Pflanze",color:"#2f9a3a", belly:"#c8ecb0", feats:["flower","horns","spikes","brows"]},
+  // wilde Wortlinge
+  hoppel:  {name:"Hoppel",   type:"Normal", color:"#ff9fcf", belly:"#ffe2f0", feats:["bunny"], cry:"Hopp hopp!"},
+  summsel: {name:"Summsel",  type:"Käfer",  color:"#ffd23a", belly:"#fff3b0", feats:["bugwings","antenna"], cry:"Summ summ!"},
+  pieps:   {name:"Pieps",    type:"Normal", color:"#8fd0ff", belly:"#e6f6ff", feats:["wings","tuft","beak"], cry:"Piep piep!"},
+  farbo:   {name:"Farbolino",type:"Psycho", color:"#a46cff", belly:"#e9dcff", feats:["antenna","spots"], cry:"Bunt, bunt, bunt!"},
+  moosling:{name:"Moosling", type:"Pflanze",color:"#7bbf5a", belly:"#e2f5cf", feats:["leaf","bigmouth"], cry:"Raschel raschel!"},
+  glitzi:  {name:"Glitzi",   type:"Fee",    color:"#ff9fe0", belly:"#ffe6f7", feats:["cat","sparkle"], cry:"Glitzer-glitzer!"},
+  krabbo:  {name:"Krabbo",   type:"Wasser", color:"#ff5c5c", belly:"#ffd0c2", feats:["claws","stalks"], cry:"Klick-klack!"},
+  muschli: {name:"Muschli",  type:"Wasser", color:"#ffb7a0", belly:"#fff0e8", feats:["shell"], cry:"Rausch, rausch!"},
+  sandi:   {name:"Sandi",    type:"Boden",  color:"#d9a45b", belly:"#f6dfb5", feats:["spikes","bigmouth"], cry:"Kratz kratz!"},
+  mampfi:  {name:"Mampfi",   type:"Normal", color:"#ffcf3a", belly:"#fff1b5", feats:["bigmouth","tuft"], cry:"Mampf mampf!"},
+  kruemel: {name:"Krümel",   type:"Normal", color:"#b07a45", belly:"#f0d3ad", feats:["cat","spots"], cry:"Knusper knusper!"},
+  beerli:  {name:"Beerli",   type:"Fee",    color:"#8e5bd6", belly:"#e3d2ff", feats:["tuft","sparkle"], cry:"Beeren-Power!"},
+  ratter:  {name:"Ratterix", type:"Elektro",color:"#8fa3b8", belly:"#dfe8f1", feats:["bolt","square"], cry:"Ratter-ratter!"},
+  blinki:  {name:"Blinki",   type:"Elektro",color:"#ffd400", belly:"#fff6b0", feats:["square","antenna"], cry:"Blink-blink!"},
+  brummo:  {name:"Brummo",   type:"Stahl",  color:"#7f8c99", belly:"#cfd8e0", feats:["square","horns","brows"], cry:"Brumm brumm!"},
+  lexikus: {name:"Lexikus",  type:"Drache", color:"#3b3fae", belly:"#b8bdff", feats:["horns","wings","crown"], cry:"Ich bin Lexikus, der Wort-Meister!"},
+};
+const DEX = Object.keys(MONS);               // Lexikon-Reihenfolge = Nummer
+const dexNo = k=>"#"+String(DEX.indexOf(k)+1).padStart(3,"0");
 
 const STATIONS = [
-  {name:"Blumenwiese",   theme:"tiere",  icon:"🌼", x:14, y:72, mon:"hoppel",
-   say:"Hopp hopp! Kennst du die Tiere auf Englisch?"},
-  {name:"Regenbogenwald",theme:"farben", icon:"🌈", x:38, y:56, mon:"farbo",
+  {name:"Blumenwiese",   theme:"tiere",  icon:"🌼", x:14, y:72, mons:["hoppel","summsel","pieps"],
+   say:"Kennst du die Tiere auf Englisch?"},
+  {name:"Regenbogenwald",theme:"farben", icon:"🌈", x:38, y:56, mons:["farbo","moosling","glitzi"],
    say:"Ich liebe Farben! Weißt du, wie sie auf Englisch heißen?"},
-  {name:"Zahlenstrand",  theme:"zahlen", icon:"🏖️", x:16, y:30, mon:"krabbo",
-   say:"Klick-klack! Ich zähle gern. Du auch?"},
-  {name:"Picknickplatz", theme:"essen",  icon:"🧺", x:52, y:22, mon:"mampfi",
-   say:"Mampf mampf! Ich habe Hunger. Hilf mir beim Essen!"},
-  {name:"Spielzeugstadt",theme:"dinge",  icon:"🏘️", x:80, y:48, mon:"ratter",
-   say:"Ratter-ratter! Hier gibt es viele Sachen aus Schule und Zuhause."},
-  {name:"Die Schule",    theme:"mix",    icon:"🏫", x:82, y:15, mon:"lexikus", boss:true,
-   say:"Ich bin Lexikus, der Wort-Meister! Zeig mir alles, was du gelernt hast!"},
+  {name:"Zahlenstrand",  theme:"zahlen", icon:"🏖️", x:16, y:30, mons:["krabbo","muschli","sandi"],
+   say:"Ich zähle gern. Du auch?"},
+  {name:"Picknickplatz", theme:"essen",  icon:"🧺", x:52, y:22, mons:["mampfi","kruemel","beerli"],
+   say:"Ich habe Hunger! Hilf mir beim Essen!"},
+  {name:"Spielzeugstadt",theme:"dinge",  icon:"🏘️", x:80, y:48, mons:["ratter","blinki","brummo"],
+   say:"Hier gibt es viele Sachen aus Schule und Zuhause."},
+  {name:"Die Schule",    theme:"mix",    icon:"🏫", x:82, y:15, mons:["lexikus"], boss:true,
+   say:"Zeig mir alles, was du gelernt hast!"},
 ];
+const EVO_NACH = [3,5];   // nach so vielen Siegen entwickelt sich der Partner
 const START = {x:8, y:92};
 
 /* ============ MONSTER ZEICHNEN (SVG) ============ */
@@ -342,6 +416,11 @@ function monSVG(key){
   if(f.includes("tuft")) back += `<path d="M88 64 Q92 40 100 52 Q104 34 112 64Z" fill="${shade(c,-20)}"/>`;
   if(f.includes("bolt")) back += `<path d="M100 18 L88 50 L100 48 L94 70 L114 40 L102 42 L110 18Z" fill="#ffd400" stroke="${dark}" stroke-width="2"/>`;
   if(f.includes("horns")) back += `<path d="M66 72 Q50 40 62 22 Q70 50 84 64Z" fill="#fff3c4"/><path d="M134 72 Q150 40 138 22 Q130 50 116 64Z" fill="#fff3c4"/>`;
+  if(f.includes("spikes")) back += `<path d="M52 92 L58 58 L76 76 L88 44 L100 68 L112 44 L124 76 L142 58 L148 92Z" fill="${shade(c,-35)}"/>`;
+  if(f.includes("cat")) back += `<path d="M52 84 L56 40 L88 66Z" fill="${c}"/><path d="M60 74 L62 52 L78 66Z" fill="${b}"/><path d="M148 84 L144 40 L112 66Z" fill="${c}"/><path d="M140 74 L138 52 L122 66Z" fill="${b}"/>`;
+  if(f.includes("bugwings")) back += `<ellipse cx="44" cy="84" rx="30" ry="17" fill="#e8f7ff" opacity=".9" stroke="#9cc9e8" stroke-width="3" transform="rotate(-35 44 84)"/><ellipse cx="156" cy="84" rx="30" ry="17" fill="#e8f7ff" opacity=".9" stroke="#9cc9e8" stroke-width="3" transform="rotate(35 156 84)"/>`;
+  if(f.includes("shell")) back += `<circle cx="146" cy="96" r="44" fill="#f7d7b8" stroke="#c98f63" stroke-width="5"/><path d="M146 96 m-6 0 a6 6 0 1 1 12 0 a14 14 0 1 1 -26 0 a22 22 0 1 1 44 0 a30 30 0 1 1 -60 0" fill="none" stroke="#c98f63" stroke-width="4"/>`;
+  if(f.includes("flower")) back += `<g transform="translate(100 46)">${[0,72,144,216,288].map(a=>`<ellipse cx="0" cy="-17" rx="11" ry="17" fill="#ff8fc8" transform="rotate(${a})"/>`).join("")}<circle r="11" fill="#ffd400"/></g>`;
   const square = f.includes("square");
   const body = square
     ? `<rect x="42" y="62" width="116" height="112" rx="26" fill="${c}"/><rect x="62" y="112" width="76" height="54" rx="16" fill="${b}"/>`
@@ -353,9 +432,12 @@ function monSVG(key){
     <circle cx="81" cy="107" r="8" fill="${dark}"/><circle cx="125" cy="107" r="8" fill="${dark}"/>
     <circle cx="84" cy="103" r="3" fill="#fff"/><circle cx="128" cy="103" r="3" fill="#fff"/></g>
     <ellipse cx="60" cy="126" rx="9" ry="6" fill="#ff7ab8" opacity=".55"/><ellipse cx="140" cy="126" rx="9" ry="6" fill="#ff7ab8" opacity=".55"/>`;
-  const mouth = f.includes("bigmouth")
+  if(f.includes("sparkle")) front += `<g fill="#fff6a8" stroke="#e6b800" stroke-width="2"><path d="M30 60 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5z"/><path d="M168 140 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4z"/><path d="M160 48 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z"/></g>`;
+  const brows = f.includes("brows") ? `<path d="M62 84 L92 92" stroke="${dark}" stroke-width="6" stroke-linecap="round"/><path d="M138 84 L108 92" stroke="${dark}" stroke-width="6" stroke-linecap="round"/>` : "";
+  const beak = f.includes("beak") ? `<path d="M88 120 L112 120 L100 136Z" fill="#ffb02e" stroke="${dark}" stroke-width="2"/>` : "";
+  const mouth = beak ? beak+brows : brows + (f.includes("bigmouth")
     ? `<path d="M80 126 Q100 156 120 126Z" fill="#8a1f3a"/><path d="M90 140 Q100 150 110 140" fill="#ff8fa8"/><rect x="92" y="126" width="7" height="7" fill="#fff"/><rect x="101" y="126" width="7" height="7" fill="#fff"/>`
-    : `<path d="M88 128 Q100 140 112 128" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+    : `<path d="M88 128 Q100 140 112 128" stroke="${dark}" stroke-width="4" fill="none" stroke-linecap="round"/>`);
   return `<svg class="m" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">${back}${feet}${body}${front}${eyes}${mouth}</svg>`;
 }
 function shade(hex,amt){
@@ -382,14 +464,17 @@ function picHTML(p){
 function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));}
 
 /* ============ TON ============ */
-let muted=false, actx=null;
-function audio(){ if(!actx){ try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } if(actx&&actx.state==="suspended")actx.resume(); return actx; }
-function tone(freq,dur=.15,type="sine",delay=0,vol=.18){
+let muted=false, actx=null, musicGain=null;
+function audio(){
+  if(!actx){ try{actx=new (window.AudioContext||window.webkitAudioContext)(); musicGain=actx.createGain(); musicGain.gain.value=1; musicGain.connect(actx.destination);}catch(e){} }
+  if(actx&&actx.state==="suspended")actx.resume(); return actx;
+}
+function tone(freq,dur=.15,type="sine",delay=0,vol=.18,dest,abs){
   if(muted)return; const a=audio(); if(!a)return;
-  const o=a.createOscillator(),g=a.createGain(),t=a.currentTime+delay;
+  const o=a.createOscillator(),g=a.createGain(),t=abs?delay:a.currentTime+delay;
   o.type=type;o.frequency.setValueAtTime(freq,t);
   g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);
-  o.connect(g).connect(a.destination);o.start(t);o.stop(t+dur+.02);
+  o.connect(g).connect(dest||a.destination);o.start(t);o.stop(t+dur+.02);
 }
 const SFX={
   tap:()=>tone(660,.07,"triangle"),
@@ -397,9 +482,40 @@ const SFX={
   bad:()=>{tone(220,.25,"sawtooth",0,.12);tone(180,.3,"sawtooth",.15,.12);},
   hit:()=>{tone(300,.08,"square",0,.1);tone(150,.12,"square",.06,.1);},
   win:()=>{[523,659,784,1047].forEach((f,i)=>tone(f,.2,"triangle",i*.13));},
-  wild:()=>{[400,500,400,600].forEach((f,i)=>tone(f,.1,"square",i*.1,.08));},
+  wild:()=>{[400,500,400,600,400,700].forEach((f,i)=>tone(f,.1,"square",i*.09,.08));},
   catch:()=>{tone(500,.1,"sine");tone(700,.1,"sine",.5);tone(900,.1,"sine",1);tone(1200,.3,"triangle",1.5);},
+  evo:()=>{[523,587,659,698,784,880,988,1047].forEach((f,i)=>tone(f,.25,"triangle",i*.12,.12));},
 };
+
+/* ---- Hintergrundmusik (selbst komponiert, Achtelnoten als MIDI-Nummern, 0 = Pause) ---- */
+const MUSIC={
+  map:{bpm:112,wave:"triangle",vol:.05,
+    mel:[72,0,76,79,77,76,74,0, 72,74,76,72,69,0,67,0, 69,0,72,76,74,72,71,0, 72,0,67,0,72,0,0,0],
+    bass:[48,55,53,55, 48,57,53,55]},
+  battle:{bpm:156,wave:"square",vol:.03,
+    mel:[76,0,76,79,76,74,72,74, 76,0,71,0,72,74,71,0, 69,0,69,72,69,67,69,72, 74,0,76,0,71,0,0,0],
+    bass:[45,45,45,45,41,41,43,43, 45,45,45,45,40,40,44,44]},
+  boss:{bpm:170,wave:"square",vol:.03,
+    mel:[69,72,76,72,69,72,77,72, 68,71,76,71,68,71,74,71, 69,72,76,79,81,79,76,72, 71,0,74,0,76,0,0,0],
+    bass:[45,45,45,45,44,44,44,44, 41,41,41,41,40,40,40,40]},
+};
+let musTimer=null, musName=null;
+const midi=n=>440*Math.pow(2,(n-69)/12);
+function playMusic(name){
+  stopMusic(); musName=name; if(muted||!name)return;
+  const a=audio(); if(!a)return;
+  const m=MUSIC[name], step8=60/m.bpm/2; let next=a.currentTime+.15, i=0;
+  musTimer=setInterval(()=>{
+    while(next<a.currentTime+.35){
+      const n=m.mel[i%m.mel.length]; if(n) tone(midi(n),step8*.9,m.wave,next,m.vol,musicGain,true);
+      if(i%2===0){ const bn=m.bass[(i/2)%m.bass.length]; if(bn) tone(midi(bn),step8*1.8,"triangle",next,m.vol*1.6,musicGain,true); }
+      next+=step8; i++;
+    }
+  },100);
+}
+function stopMusic(){ if(musTimer)clearInterval(musTimer); musTimer=null; }
+function duck(){ if(!musicGain||!actx)return; const t=actx.currentTime; musicGain.gain.cancelScheduledValues(t);
+  musicGain.gain.setValueAtTime(.25,t); musicGain.gain.linearRampToValueAtTime(1,t+2.2); }
 
 /* ============ SPRACHE ============ */
 let voices=[];
@@ -407,6 +523,7 @@ function loadVoices(){ voices = window.speechSynthesis ? speechSynthesis.getVoic
 if(window.speechSynthesis){ loadVoices(); speechSynthesis.onvoiceschanged=loadVoices; }
 function speak(text,lang="en-GB",rate){
   if(muted||!window.speechSynthesis)return;
+  duck();
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
   u.lang=lang; u.rate=rate||(lang.startsWith("en")?.8:.95);
@@ -416,6 +533,7 @@ function speak(text,lang="en-GB",rate){
   speechSynthesis.speak(u);
 }
 const stripEmoji = t=>t.replace(/<[^>]+>/g,"").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}]/gu,"");
+const typeBadge = k=>{ const t=TYPEN[MONS[k].type]; return `<span class="tbadge" style="background:${t.color}">${t.icon} ${MONS[k].type}</span>`; };
 
 /* ============ DIALOG ============ */
 function dialog(lines, face="🦉"){
@@ -426,7 +544,7 @@ function dialog(lines, face="🦉"){
     render(); d.classList.add("on");
     $("#dlgSpeak").onclick=()=>speak(stripEmoji($("#dlgText").textContent),"de-DE");
     $("#dlgNext").onclick=()=>{
-      SFX.tap(); speechSynthesis&&speechSynthesis.cancel(); i++;
+      SFX.tap(); window.speechSynthesis&&speechSynthesis.cancel(); i++;
       if(i<lines.length) render(); else { d.classList.remove("on"); res(); }
     };
   });
@@ -435,14 +553,16 @@ function dialog(lines, face="🦉"){
 /* ============ SPIELSTAND ============ */
 let S;
 function newGame(){
-  S={name:"",partner:null,station:0,stars:[],caught:[],correct:0,wrong:0};
+  S={name:"",partner:null,station:0,stars:[],caught:[],seen:[],owned:[],correct:0,wrong:0};
   $("#nameInput").value="";
+  stopMusic(); musName=null;
+  ["#dlg","#evo","#lex"].forEach(s=>$(s).classList.remove("on"));
   show("title");
 }
 
 /* ============ TITEL / NAME / PARTNER ============ */
 $("#titleMons").innerHTML = monSVG("funki")+monSVG("plitsch")+monSVG("knospi");
-$("#startBtn").onclick=()=>{ audio(); SFX.tap(); speak(" ","en-GB"); show("nameScreen"); };
+$("#startBtn").onclick=()=>{ audio(); SFX.tap(); speak(" ","en-GB"); playMusic("map"); show("nameScreen"); };
 $("#nameBtn").onclick=async()=>{
   SFX.tap();
   let n=$("#nameInput").value.trim(); n = n ? n.charAt(0).toUpperCase()+n.slice(1) : "Held";
@@ -454,6 +574,7 @@ $("#nameBtn").onclick=async()=>{
     "Hier leben die <b>Wortlinge</b>. Das sind kleine Monster, die Englisch lieben.",
     "Wenn du einen Wortling triffst, stellt er dir eine <b>Frage</b>. Wählst du die richtige Antwort, greift dein Partner an! 💥",
     "Tippe auf 🔊, dann hörst du, wie man das Wort auf Englisch spricht.",
+    "Und wenn dein Partner stark genug ist, <b>entwickelt</b> er sich! ✨",
     "Ganz am Ende wartet der große <b>Lexikus</b> in der Schule. Zuerst brauchst du aber einen Partner. Such dir einen aus!"
   ]);
   renderPartners();
@@ -464,11 +585,11 @@ function renderPartners(){
   const wrap=$("#partners"); wrap.innerHTML="";
   ["funki","plitsch","knospi"].forEach(k=>{
     const b=document.createElement("button"); b.className="pcard";
-    b.innerHTML=monSVG(k)+`<b>${MONS[k].name}</b><span>${MONS[k].desc}</span>`;
+    b.innerHTML=monSVG(k)+`<b>${MONS[k].name}</b><span>${typeBadge(k)}</span><span>${MONS[k].desc}</span>`;
     b.onclick=async()=>{
-      SFX.good(); S.partner=k; b.style.borderColor="var(--accent)";
+      SFX.good(); S.partner=k; S.owned.push(k); b.style.borderColor="var(--accent)";
       await sleep(300);
-      await dialog([`Super Wahl! <b>${MONS[k].name}</b> ist jetzt dein Partner.`,
+      await dialog([`Super Wahl! <b>${MONS[k].name}</b> ist ein Wortling vom Typ <b>${MONS[k].type}</b> ${TYPEN[MONS[k].type].icon}.`,
         "Auf der Karte siehst du deinen Weg. Tippe auf den leuchtenden Ort, um loszulaufen. Viel Glück!"], k);
       openMap();
     };
@@ -481,14 +602,15 @@ const DECOS=[["🌳",30,85],["🌲",4,60],["🌳",62,70],["🌷",48,88],["🌲",
   ["🌲",40,10],["🌊",6,18],["🌊",28,14],["🌷",66,52],["🍄",88,30],["🌳",58,8],["🦋",24,52]];
 function openMap(){
   show("map");
+  if(musName!=="map") playMusic("map");
   $("#mapName").textContent="🧒 "+S.name;
   $("#mapStars").textContent="⭐ "+S.stars.reduce((a,b)=>a+b,0);
-  $("#mapCount").textContent="📖 "+S.caught.length+" Wortlinge";
+  $("#mapCount").textContent="📖 Lexikon "+(S.owned.length+S.caught.length)+"/"+DEX.length;
   const area=$("#mapArea");
   const pts=[START,...STATIONS];
   let html=`<svg class="road" viewBox="0 0 100 100" preserveAspectRatio="none">
     <polyline points="${pts.map(p=>p.x+","+p.y).join(" ")}" fill="none" stroke="#f3d9a4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="stroke-width:clamp(26px,5vmin,48px)"/>
-    <polyline points="${pts.map(p=>p.x+","+p.y).join(" ")}" fill="none" stroke="#fff" stroke-dasharray="2 3" stroke-width="1" vector-effect="non-scaling-stroke" style="stroke-width:4px;stroke-dasharray:10 14" opacity=".8"/>
+    <polyline points="${pts.map(p=>p.x+","+p.y).join(" ")}" fill="none" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" style="stroke-width:4px;stroke-dasharray:10 14" opacity=".8"/>
   </svg>`;
   DECOS.forEach(([e,x,y])=>html+=`<div class="deco" style="left:${x}%;top:${y}%">${e}</div>`);
   html+=`<div class="deco" style="left:${START.x}%;top:${START.y}%">🏡</div>`;
@@ -504,8 +626,7 @@ function openMap(){
     const i=+n.dataset.i;
     if(i===S.station) walkTo(i); else { SFX.tap(); n.classList.remove("shake"); void n.offsetWidth; n.classList.add("shake"); }
   });
-  const team=$("#team");
-  team.innerHTML="Dein Team: "+monSVG(S.partner)+S.caught.map(monSVG).join("");
+  $("#team").innerHTML="Dein Team: "+monSVG(S.partner)+S.caught.map(monSVG).join("");
 }
 let busy=false;
 async function walkTo(i){
@@ -514,15 +635,28 @@ async function walkTo(i){
   const t=$("#token"), st=STATIONS[i];
   t.classList.add("walk"); t.style.left=st.x+"%"; t.style.top=st.y+"%";
   await sleep(1400); t.classList.remove("walk");
-  SFX.wild();
+  stopMusic(); SFX.wild();
   const f=document.createElement("div"); f.className="flashScreen"; document.body.appendChild(f);
   await sleep(1000); f.remove(); busy=false;
   startBattle(i);
 }
 
+/* ============ LEXIKON ============ */
+$("#mapCount").onclick=()=>{
+  SFX.tap();
+  const have=new Set([...S.owned,...S.caught]), seen=new Set(S.seen);
+  $("#lexInfo").textContent=`Du hast ${have.size} von ${DEX.length} Wortlingen. Sammle sie alle!`;
+  $("#dex").innerHTML=DEX.map(k=>{
+    const known=have.has(k)||seen.has(k);
+    return `<div class="dexc ${known?"":"unk"}">${monSVG(k)}<div>${dexNo(k)}</div><div>${known?MONS[k].name:"???"}</div>${known?typeBadge(k):""}${have.has(k)?" ✔️":""}</div>`;
+  }).join("");
+  $("#lex").classList.add("on");
+};
+$("#lexClose").onclick=()=>{ SFX.tap(); $("#lex").classList.remove("on"); };
+
 /* ============ KAMPF ============ */
 let B=null, lock=false;
-const TYPES=["pic2en","listen","de2en","en2de"];
+const QTYPES=["pic2en","listen","de2en","en2de"];
 function buildQueue(st){
   const pool = st.theme==="mix" ? ALL_WORDS : THEMES[st.theme].words;
   let words;
@@ -531,29 +665,39 @@ function buildQueue(st){
     while(words.length<FRAGEN_BOSS){ const w=pick(ALL_WORDS); if(!words.includes(w)) words.push(w); }
   } else words = shuffle(pool).slice(0,FRAGEN_PRO_KAMPF);
   let last=null;
-  return words.map(w=>{ let t; do{t=pick(TYPES);}while(t===last); last=t; return {w,t}; });
+  return words.map(w=>{ let t; do{t=pick(QTYPES);}while(t===last); last=t; return {w,t}; });
 }
 function makeOptions(w){
   const pool = THEMES[w.theme].words.filter(x=>x!==w);
   return shuffle([w,...shuffle(pool).slice(0,3)]);
 }
+function banner(html){ const d=document.createElement("div"); d.className="banner"; d.innerHTML=html; $("#arena").appendChild(d); setTimeout(()=>d.remove(),1700); }
 
 async function startBattle(i){
-  const st=STATIONS[i];
-  B={i,st,queue:buildQueue(st),hp:0,max:0,hearts:HERZEN,mistakes:0,asked:0};
+  const st=STATIONS[i], mon=pick(st.mons);
+  B={i,st,mon,queue:buildQueue(st),hp:0,max:0,hearts:HERZEN,mistakes:0,asked:0};
   B.max=B.hp=B.queue.length;
+  if(!S.seen.includes(mon)) S.seen.push(mon);
   show("battle");
+  playMusic(st.boss?"boss":"battle");
   $("#arena").classList.toggle("boss",!!st.boss);
   const e=$("#eMon"), p=$("#pMon");
-  e.className="mon enemy"; e.innerHTML=monSVG(st.mon); e.style.opacity=1; e.style.transform="";
-  p.className="mon partner"; p.innerHTML=monSVG(S.partner);
-  $("#eName").textContent=MONS[st.mon].name; $("#pName").textContent="Du + "+MONS[S.partner].name;
+  e.className="mon enemy enterR"; e.innerHTML=monSVG(mon); e.style.opacity=1; e.style.transform="";
+  p.className="mon partner"; p.innerHTML=monSVG(S.partner); p.style.visibility="hidden";
+  $("#eName").innerHTML=`<span class="dexno">${dexNo(mon)}</span>${MONS[mon].name}${typeBadge(mon)}`;
+  $("#pName").innerHTML=`Du + ${MONS[S.partner].name}${typeBadge(S.partner)}`;
   $("#ball").className=""; $("#ball").innerHTML=ballSVG();
   updateBars();
   clearPanel();
-  $("#qText").innerHTML = st.boss ? `Der Wort-Meister <b>${MONS[st.mon].name}</b> erscheint!` : `Ein wilder Wortling erscheint: <b>${MONS[st.mon].name}</b>!`;
-  await sleep(1300);
-  await dialog([st.say, st.boss?"Lexikus fragt Wörter aus <b>allen</b> Themen. Du schaffst das, {name}!":`Thema: <b>${THEMES[st.theme].label}</b>. Los geht's!`], st.mon);
+  const intro = st.boss ? `Der Wort-Meister ${MONS[mon].name} erscheint!` : `Ein wildes ${MONS[mon].name} erscheint!`;
+  $("#qText").innerHTML = intro;
+  setTimeout(()=>banner(intro),500);
+  await sleep(2100);
+  p.style.visibility="visible"; p.classList.add("enterL");
+  $("#qText").innerHTML = `Los, <b>${MONS[S.partner].name}</b>!`;
+  SFX.tap();
+  await sleep(1000);
+  await dialog([`${MONS[mon].cry} ${st.say}`, st.boss?"Lexikus fragt Wörter aus <b>allen</b> Themen. Du schaffst das, {name}!":`Thema: <b>${THEMES[st.theme].label}</b>. Los geht's!`], mon);
   nextQuestion();
 }
 function updateBars(){
@@ -569,14 +713,14 @@ function nextQuestion(){
   clearPanel(); lock=false;
   const q=B.queue.shift(); B.cur=q; B.asked++;
   const w=q.w, opts=makeOptions(w);
-  const bubble=$("#bubble"), pic=$("#qPic"), ans=$("#answers");
+  const pic=$("#qPic"), ans=$("#answers");
   let label, optHTML, isPic=false;
   if(q.t==="pic2en"){ label="Wie heißt das auf Englisch?"; pic.innerHTML=picHTML(w.pic); optHTML=o=>o.en; }
   if(q.t==="de2en"){ label="Was heißt das auf Englisch?"; pic.innerHTML=`<span class="word">${w.de}</span>`; optHTML=o=>o.en; }
   if(q.t==="en2de"){ label="Was bedeutet das auf Deutsch?"; pic.innerHTML=`<span class="word">${w.en}</span>`; optHTML=o=>o.de; addSpeak(w.en); setTimeout(()=>speak(w.en),300); }
   if(q.t==="listen"){ label="Hör gut zu! Welches Bild passt?"; pic.innerHTML=`<button class="speak" style="width:auto;height:auto;padding:.15em .5em;border-radius:24px;font-size:clamp(34px,6vmin,60px)" id="bigSpeak">🔊 Hören</button>`;
     $("#bigSpeak").onclick=()=>speak(w.en); setTimeout(()=>speak(w.en),300); optHTML=o=>picHTML(o.pic); isPic=true; }
-  $("#qText").innerHTML=`<b>${MONS[B.st.mon].name}:</b> „${label}“`;
+  $("#qText").innerHTML=`<b>${MONS[B.mon].name}:</b> „${label}“`;
   opts.forEach(o=>{
     const b=document.createElement("button"); b.className="ans"+(isPic?" pic":""); b.innerHTML=optHTML(o);
     b.onclick=()=>answer(b,o); ans.appendChild(b);
@@ -587,7 +731,7 @@ function addSpeak(word){
   $("#bubble").appendChild(s);
 }
 function popText(txt,color,leftPct,topPct){
-  const d=document.createElement("div"); d.className="pop"; d.textContent=txt; d.style.color=color;
+  const d=document.createElement("div"); d.className="pop"; d.textContent=txt; if(color)d.style.color=color;
   d.style.left=leftPct+"%"; d.style.top=topPct+"%"; $("#arena").appendChild(d); setTimeout(()=>d.remove(),1000);
 }
 function anim(el,cls){ el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),500); }
@@ -599,24 +743,28 @@ async function answer(btn,o){
   const btns=[...document.querySelectorAll(".ans")];
   const pair=`${picHTML(w.pic)} <b>${w.en}</b> = ${w.de}`;
   if(ok){
+    const pt=TYPEN[MONS[S.partner].type];
     btn.classList.add("right"); btns.forEach(b=>b!==btn&&b.classList.add("dim"));
     SFX.good(); S.correct++;
     speak(w.en);
     await sleep(500);
+    $("#qText").innerHTML=`<b>${MONS[S.partner].name}</b> setzt <b style="color:${pt.color}">${pick(pt.atk)}</b> ein! ${pt.icon}`;
     anim($("#pMon"),"lungeR"); await sleep(200);
     SFX.hit(); anim($("#eMon"),"shake"); anim($("#eMon"),"flash");
-    popText("💥",null,74,35);
+    popText(pt.icon,null,74,30); setTimeout(()=>popText("💥",null,70,45),150);
     B.hp--; updateBars();
     $("#answers").innerHTML=""; $("#qPic").innerHTML="";
     $("#msg").innerHTML=`<span class="big">${pick(LOB)} 🎉</span><br>${pair}`;
-    await sleep(1700);
+    await sleep(1900);
     if(B.hp<=0) return winBattle();
     nextQuestion();
   } else {
+    const et=TYPEN[MONS[B.mon].type];
     btn.classList.add("wrong");
     btns.forEach(b=>{ if(b!==btn) b.classList.add("dim"); });
     SFX.bad(); S.wrong++; B.mistakes++;
     await sleep(450);
+    $("#qText").innerHTML=`<b>${MONS[B.mon].name}</b> setzt <b style="color:${et.color}">${pick(et.atk)}</b> ein! ${et.icon}`;
     anim($("#eMon"),"lungeL"); await sleep(200);
     SFX.hit(); anim($("#pMon"),"shake"); popText("💫",null,20,35);
     B.hearts--; updateBars();
@@ -624,7 +772,7 @@ async function answer(btn,o){
     $("#msg").innerHTML=`<span class="big">Fast! 🙂</span><br>Richtig ist: ${pair}<br><small>Das Wort kommt gleich noch einmal.</small>`;
     speak(w.en);
     // Wort später nochmal fragen (anderer Fragetyp)
-    const nt = pick(TYPES.filter(t=>t!==B.cur.t));
+    const nt = pick(QTYPES.filter(t=>t!==B.cur.t));
     B.queue.splice(Math.min(1,B.queue.length),0,{w,t:nt});
     await sleep(2800);
     if(B.hearts<=0){
@@ -637,9 +785,9 @@ async function answer(btn,o){
 
 async function winBattle(){
   clearPanel();
-  const st=B.st, m=MONS[st.mon];
+  const st=B.st, m=MONS[B.mon];
   $("#eMon").classList.add("faint");
-  SFX.win();
+  stopMusic(); SFX.win();
   const stars = B.mistakes===0?3:B.mistakes<=2?2:1;
   S.stars[B.i]=stars;
   $("#qText").innerHTML=`<b>${m.name}</b> ist besiegt!`;
@@ -654,14 +802,15 @@ async function winBattle(){
   ball.className="wobble"; SFX.catch();
   await sleep(1600);
   popText("✨",null,74,35);
-  S.caught.push(st.mon);
-  $("#qText").innerHTML=`Juhu! <b>${m.name}</b> ist jetzt dein Freund!`;
+  S.caught.push(B.mon);
+  $("#qText").innerHTML=`Juhu! <b>${m.name}</b> ist jetzt dein Freund! <small>(${dexNo(B.mon)} im Lexikon)</small>`;
   $("#msg").innerHTML=`<span class="big">${"⭐".repeat(stars)}${"☆".repeat(3-stars)}</span>`;
   await sleep(1800);
   S.station++;
   if(st.boss){ return finale(); }
+  if(EVO_NACH.includes(S.station) && MONS[S.partner].evo) await evolve();
   const tips=[
-    "Toll, {name}! Hoppel kommt mit dir. Weiter geht's zum Regenbogenwald!",
+    "Toll, {name}! Weiter geht's zum Regenbogenwald!",
     "Super! Als Nächstes geht es an den Zahlenstrand.",
     "Prima! Hast du Hunger? Auf zum Picknickplatz!",
     "Klasse! Jetzt geht es in die Spielzeugstadt.",
@@ -669,6 +818,31 @@ async function winBattle(){
   ];
   await dialog([tips[B.i]]);
   openMap();
+}
+
+/* ============ ENTWICKLUNG ============ */
+async function evolve(){
+  const from=S.partner, to=MONS[from].evo, ov=$("#evo"), mon=$("#evoMon"), txt=$("#evoText"), nx=$("#evoNext");
+  nx.style.visibility="hidden";
+  mon.className=""; mon.innerHTML=monSVG(from);
+  txt.innerHTML=`Nanu? <b>${MONS[from].name}</b> leuchtet ...`;
+  ov.classList.add("on");
+  await sleep(1600);
+  mon.classList.add("white");
+  txt.innerHTML=`<b>${MONS[from].name}</b> entwickelt sich!`;
+  SFX.evo();
+  let d=450;
+  for(let k=0;k<9;k++){ mon.innerHTML=monSVG(k%2?from:to); await sleep(d); d=Math.max(110,d*.8); }
+  mon.innerHTML=monSVG(to); await sleep(300);
+  mon.classList.remove("white"); SFX.win();
+  for(let k=0;k<20;k++){ const c=document.createElement("div"); c.className="confetti"; c.textContent=pick(["✨","⭐","🌟"]);
+    c.style.left=Math.random()*100+"%"; c.style.animationDuration=(2+Math.random()*3)+"s"; ov.appendChild(c); setTimeout(()=>c.remove(),5000); }
+  S.partner=to; S.owned.push(to);
+  txt.innerHTML=`Wow! <b>${MONS[from].name}</b> hat sich zu <b>${MONS[to].name}</b> entwickelt! 🎉`;
+  speak(`Wow! ${MONS[from].name} hat sich zu ${MONS[to].name} entwickelt!`,"de-DE");
+  nx.style.visibility="visible";
+  await new Promise(r=>nx.onclick=r);
+  SFX.tap(); ov.classList.remove("on");
 }
 
 /* ============ ENDE ============ */
@@ -686,6 +860,7 @@ async function finale(){
     <p>Willkommen an ${SCHULNAME}! 🎒</p>
     <button class="btn green" id="againBtn" style="margin-top:1.5vmin">🔄 Neues Spiel</button>`;
   show("end");
+  playMusic("map");
   SFX.win();
   speak("Well done, "+S.name+"!","en-GB");
   const end=$("#end");
@@ -698,8 +873,12 @@ async function finale(){
 }
 
 /* ============ KNÖPFE ============ */
-$("#muteBtn").onclick=()=>{ muted=!muted; $("#muteBtn").textContent=muted?"🔇":"🔈"; if(muted&&window.speechSynthesis)speechSynthesis.cancel(); };
-$("#resetBtn").onclick=()=>{ if(confirm("Neues Spiel starten? Der aktuelle Spielstand geht verloren.")){ $("#dlg").classList.remove("on"); busy=false; lock=false; newGame(); } };
+$("#muteBtn").onclick=()=>{
+  muted=!muted; $("#muteBtn").textContent=muted?"🔇":"🔈";
+  if(muted){ if(window.speechSynthesis)speechSynthesis.cancel(); const n=musName; stopMusic(); musName=n; }
+  else if(musName) playMusic(musName);
+};
+$("#resetBtn").onclick=()=>{ if(confirm("Neues Spiel starten? Der aktuelle Spielstand geht verloren.")){ busy=false; lock=false; newGame(); } };
 document.addEventListener("gesturestart",e=>e.preventDefault());
 document.addEventListener("dblclick",e=>e.preventDefault());
 
