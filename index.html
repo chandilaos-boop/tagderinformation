@@ -208,6 +208,23 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 .dexc.unk .m{filter:brightness(0);opacity:.25}
 .dexc.unk{background:#ddd8f5}
 button.pill{font:inherit;font-weight:800;color:var(--ink)}
+#world{background:#3a8235}
+.worldWrap{position:relative;flex:1;overflow:hidden;touch-action:none}
+#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#zoneBanner{position:absolute;top:4%;left:50%;transform:translateX(-50%);background:rgba(43,35,80,.85);color:#fff;font-weight:900;
+  font-size:clamp(22px,4.5vmin,42px);padding:.25em 1em;border-radius:999px;opacity:0;pointer-events:none;white-space:nowrap}
+#zoneBanner.show{animation:zoneIn 2.6s forwards}
+@keyframes zoneIn{0%{opacity:0;transform:translate(-50%,-20px)}12%,75%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
+#hint{position:absolute;bottom:calc(12px + env(safe-area-inset-bottom));right:12px;left:calc(12px + min(34vmin,260px));text-align:center;
+  background:rgba(255,255,255,.9);border-radius:18px;padding:.4em .8em;font-weight:800;font-size:clamp(15px,2.6vmin,24px);pointer-events:none;box-shadow:0 4px 0 rgba(43,35,80,.2)}
+.dpad{position:absolute;left:calc(12px + env(safe-area-inset-left));bottom:calc(12px + env(safe-area-inset-bottom));display:grid;
+  grid-template-areas:". u ." "l . r" ". d .";grid-template-columns:repeat(3,min(10.5vmin,82px));grid-template-rows:repeat(3,min(10.5vmin,82px));gap:4px}
+.dpad button{background:rgba(255,255,255,.75);border-radius:18px;font-size:min(5vmin,34px);color:var(--ink);box-shadow:0 4px 0 rgba(43,35,80,.25);touch-action:none}
+.dpad button:active{background:#fff;transform:translateY(3px)}
+.fx{position:absolute;pointer-events:none;z-index:6;line-height:1;will-change:transform}
+.fxring{position:absolute;border:6px solid;border-radius:50%;pointer-events:none;z-index:6}
+.fxbeam{position:absolute;transform-origin:0 50%;border-radius:99px;pointer-events:none;z-index:5;filter:blur(1px)}
+.fxflash{position:absolute;inset:0;pointer-events:none;z-index:5}
 #resetBtn{position:absolute;top:calc(8px + env(safe-area-inset-top));right:calc(8px + env(safe-area-inset-right));z-index:60;
   background:rgba(255,255,255,.7);border-radius:50%;width:40px;height:40px;font-size:20px;opacity:.6}
 #muteBtn{position:absolute;top:calc(8px + env(safe-area-inset-top));right:calc(56px + env(safe-area-inset-right));z-index:60;
@@ -245,15 +262,24 @@ button.pill{font:inherit;font-weight:800;color:var(--ink)}
 </section>
 
 <!-- Karte -->
-<section id="map" class="screen">
+<section id="world" class="screen">
   <div class="topbar">
     <span class="pill" id="mapName">🧒</span>
     <span class="sp"></span>
     <span class="pill" id="mapStars">⭐ 0</span>
     <button class="pill" id="mapCount">📖 Lexikon</button>
   </div>
-  <div class="mapArea" id="mapArea"></div>
-  <div class="team" id="team"></div>
+  <div class="worldWrap">
+    <canvas id="cv"></canvas>
+    <div id="zoneBanner"></div>
+    <div id="hint"></div>
+    <div class="dpad">
+      <button data-d="0,-1" style="grid-area:u">▲</button>
+      <button data-d="-1,0" style="grid-area:l">◀</button>
+      <button data-d="1,0" style="grid-area:r">▶</button>
+      <button data-d="0,1" style="grid-area:d">▼</button>
+    </div>
+  </div>
 </section>
 
 <!-- Kampf -->
@@ -553,7 +579,8 @@ function dialog(lines, face="🦉"){
 /* ============ SPIELSTAND ============ */
 let S;
 function newGame(){
-  S={name:"",partner:null,station:0,stars:[],caught:[],seen:[],owned:[],correct:0,wrong:0};
+  S={name:"",partner:null,station:0,stars:[],caught:[],seen:[],owned:[],correct:0,wrong:0,picks:STATIONS.map(st=>pick(st.mons))};
+  if(W)W.on=false; W=null;
   $("#nameInput").value="";
   stopMusic(); musName=null;
   ["#dlg","#evo","#lex"].forEach(s=>$(s).classList.remove("on"));
@@ -590,56 +617,224 @@ function renderPartners(){
       SFX.good(); S.partner=k; S.owned.push(k); b.style.borderColor="var(--accent)";
       await sleep(300);
       await dialog([`Super Wahl! <b>${MONS[k].name}</b> ist ein Wortling vom Typ <b>${MONS[k].type}</b> ${TYPEN[MONS[k].type].icon}.`,
-        "Auf der Karte siehst du deinen Weg. Tippe auf den leuchtenden Ort, um loszulaufen. Viel Glück!"], k);
-      openMap();
+        "Jetzt kannst du frei herumlaufen! Halte den Finger dorthin, wo du hinwillst – oder nimm das Steuerkreuz. Der orange Pfeil zeigt dir den Weg. Viel Glück!"], k);
+      openWorld();
     };
     wrap.appendChild(b);
   });
 }
 
-/* ============ KARTE ============ */
-const DECOS=[["🌳",30,85],["🌲",4,60],["🌳",62,70],["🌷",48,88],["🌲",92,70],["🌳",70,30],["🪨",30,40],["🌻",95,90],
-  ["🌲",40,10],["🌊",6,18],["🌊",28,14],["🌷",66,52],["🍄",88,30],["🌳",58,8],["🦋",24,52]];
-function openMap(){
-  show("map");
+/* ============ WELT (frei begehbar, 2D) ============ */
+const TS=64, MW=37, MH=23;        // Kachelgröße im Bild, Kartenbreite/-höhe in Kacheln
+const ZONES=[{cx:0,cy:1,g:"wiese"},{cx:1,cy:1,g:"wald"},{cx:2,cy:1,g:"strand"},{cx:2,cy:0,g:"picknick"},{cx:1,cy:0,g:"stadt"},{cx:0,cy:0,g:"schule"}];
+const zr = z=>({x0:1+z.cx*12, y0:1+z.cy*11});
+function gateTiles(i){ // Tor zwischen Gebiet i und i+1
+  const a=ZONES[i], b=ZONES[i+1], ra=zr(a);
+  if(a.cy===b.cy){ const x=12*Math.max(a.cx,b.cx); return [[x,ra.y0+4],[x,ra.y0+5]]; }
+  const y=11*Math.max(a.cy,b.cy); return [[ra.x0+4,y],[ra.x0+5,y],[ra.x0+6,y]];
+}
+const MON_HOME=[[7,3],[5,5],[5,7],[6,6],[5,5],[5,4.6]];   // Startpunkt der Wortlinge im Gebiet
+const EMOJI_FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+let MAP=null, OFF=null, W=null;
+function buildWorld(){
+  const rnd=mulberry32(20261117), g=[],sol=[],dec=[];
+  for(let y=0;y<MH;y++){g.push([]);sol.push([]);dec.push([]);for(let x=0;x<MW;x++){g[y].push("wall");sol[y].push(true);dec[y].push(null);}}
+  const objs=[];
+  ZONES.forEach((z,i)=>{
+    const {x0,y0}=zr(z);
+    for(let y=y0;y<y0+10;y++)for(let x=x0;x<x0+11;x++){ g[y][x]=z.g; sol[y][x]=false; }
+    const clear=(x,y)=>(y===y0+4||y===y0+5)||(x>=x0+4&&x<=x0+6)||Math.hypot(x-(x0+MON_HOME[i][0]),y-(y0+MON_HOME[i][1]))<2;
+    const each=f=>{ for(let y=y0;y<y0+10;y++)for(let x=x0;x<x0+11;x++) if(!sol[y][x]&&!dec[y][x]) f(x,y,rnd(),clear(x,y)); };
+    const put=(x,y,e,solid)=>{ dec[y][x]=e; if(solid)sol[y][x]=true; };
+    if(z.g==="wiese"){
+      put(x0+2,y0+8,"🏡",true);
+      each((x,y,r,c)=>{ if(!c&&r<.10)put(x,y,pick(["🌳","🌳","🌲"]),true); else if(r<.26)put(x,y,pick(["🌼","🌷","🌻","🌸"]),false); });
+    }
+    if(z.g==="wald") each((x,y,r,c)=>{ if(!c&&r<.24)put(x,y,pick(["🌲","🌳","🌲"]),true); else if(r<.32)put(x,y,pick(["🍄","🌿"]),false); });
+    if(z.g==="strand"){
+      for(let y=y0;y<y0+10;y++)for(let x=x0+8;x<x0+11;x++){ g[y][x]="water"; sol[y][x]=true; }
+      each((x,y,r,c)=>{ if(!c&&r<.07)put(x,y,"⛱️",true); else if(!c&&r<.11)put(x,y,"🪨",true); else if(r<.2)put(x,y,pick(["🐚","🦀","⭐"]),false); });
+    }
+    if(z.g==="picknick"){
+      objs.push({type:"blanket",x:x0+1,y:y0+1});
+      for(let y=y0+1;y<y0+3;y++)for(let x=x0+1;x<x0+3;x++) dec[y][x]="_";
+      dec[y0+1][x0+1]="🧺"; dec[y0+2][x0+2]="🍎";
+      each((x,y,r,c)=>{ if(!c&&r<.10)put(x,y,"🌳",true); else if(r<.2)put(x,y,pick(["🌼","🦋","🌷"]),false); });
+    }
+    if(z.g==="stadt") each((x,y,r,c)=>{ if(!c&&r<.22)put(x,y,pick(["🏠","🏡","🏪","🏬","🏠"]),true); else if(!c&&r<.27)put(x,y,"🌳",true); else if(r<.31)put(x,y,"🚲",false); });
+    if(z.g==="schule"){
+      for(let y=y0;y<y0+3;y++)for(let x=x0+3;x<x0+8;x++){ sol[y][x]=true; dec[y][x]="_"; }
+      objs.push({type:"emoji",e:"🏫",x:x0+5.5,y:y0+1.7,size:3.2});
+      each((x,y,r,c)=>{ if(!c&&r<.08)put(x,y,"🌳",true); else if(r<.22)put(x,y,pick(["🌷","🌸","🌼"]),false); });
+    }
+  });
+  for(let i=0;i<5;i++) gateTiles(i).forEach(([x,y])=>{ g[y][x]="path"; sol[y][x]=false; dec[y][x]=null; });
+  MAP={g,sol,dec,objs};
+}
+const GROUND={wiese:["#8fd46b","#88cd64"],wald:["#5fae4c","#59a747"],strand:["#f3dca0","#eed597"],water:["#4fb3ef","#49abe7"],
+  picknick:["#a8e281","#a0da79"],stadt:["#cfcac2","#c6c1b9"],schule:["#9ee07a","#97d973"],path:["#e8c98e","#e2c286"],wall:["#3f8a3a","#3a8235"]};
+function renderWorldCanvas(){
+  const c=document.createElement("canvas"); c.width=MW*TS; c.height=MH*TS;
+  const x=c.getContext("2d"), {g,dec,objs}=MAP;
+  for(let ty=0;ty<MH;ty++)for(let tx=0;tx<MW;tx++){
+    const k=g[ty][tx]; x.fillStyle=GROUND[k][(tx+ty)%2]; x.fillRect(tx*TS,ty*TS,TS,TS);
+    if(k==="water"){ x.strokeStyle="rgba(255,255,255,.55)"; x.lineWidth=3; x.beginPath();
+      x.arc(tx*TS+TS*.3,ty*TS+TS*.4,TS*.14,Math.PI*1.1,Math.PI*1.9); x.arc(tx*TS+TS*.7,ty*TS+TS*.75,TS*.14,Math.PI*1.1,Math.PI*1.9); x.stroke(); }
+    if(k==="stadt"){ x.strokeStyle="rgba(0,0,0,.08)"; x.lineWidth=2; x.strokeRect(tx*TS+1,ty*TS+1,TS-2,TS-2); }
+    if(k==="wiese"||k==="schule"||k==="picknick"){ x.fillStyle="rgba(255,255,255,.12)"; if((tx*7+ty*3)%5===0){ x.fillRect(tx*TS+TS*.2,ty*TS+TS*.3,4,10); x.fillRect(tx*TS+TS*.3,ty*TS+TS*.25,4,12);} }
+  }
+  objs.forEach(o=>{ if(o.type==="blanket"){ for(let i=0;i<4;i++)for(let j=0;j<4;j++){ x.fillStyle=(i+j)%2?"#fff":"#ff5a5a"; x.fillRect(o.x*TS+i*TS/2,o.y*TS+j*TS/2,TS/2,TS/2);} } });
+  x.textAlign="center"; x.textBaseline="middle";
+  for(let ty=0;ty<MH;ty++)for(let tx=0;tx<MW;tx++){
+    let e=dec[ty][tx]; const k=g[ty][tx];
+    if(k==="wall") e=(tx*13+ty*7)%3?"🌲":"🌳";
+    if(!e||e==="_")continue;
+    const big=["🌲","🌳","🏠","🏡","🏪","🏬","⛱️"].includes(e), small=["🌼","🌷","🌻","🌸","🍄","🌿","🐚","⭐","🦋","🍎"].includes(e);
+    const sz=big?TS*1.05:small?TS*.5:TS*.8;
+    x.font=`${sz}px ${EMOJI_FONT}`; x.fillText(e,tx*TS+TS/2,ty*TS+TS/2-(big?TS*.08:0));
+  }
+  objs.forEach(o=>{ if(o.type==="emoji"){ x.font=`${TS*o.size}px ${EMOJI_FONT}`; x.fillText(o.e,o.x*TS,o.y*TS); } });
+  return c;
+}
+const IMG={};
+function svgImg(k){
+  if(!IMG[k]){ const i=new Image(); i.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(monSVG(k).replace('class="m"','width="200" height="200"')); IMG[k]=i; }
+  return IMG[k];
+}
+function newWorld(){
+  if(!MAP){ buildWorld(); OFF=renderWorldCanvas(); }
+  const {x0,y0}=zr(ZONES[0]);
+  W={px:x0+5.5,py:y0+8.5,tx:null,ty:null,dir:{x:0,y:0},face:1,moving:false,on:false,zone:-1,t:0,
+     mons:STATIONS.map((st,i)=>{ const z=zr(ZONES[i]); const hx=z.x0+MON_HOME[i][0]+.5, hy=z.y0+MON_HOME[i][1]+.5;
+       return {i,key:S.picks[i],hx,hy,x:hx,y:hy,vx:0,vy:0,timer:0,boss:!!st.boss}; })};
+}
+const gateClosedAt=(tx,ty)=>{ for(let i=S.station;i<5;i++) if(gateTiles(i).some(([x,y])=>x===tx&&y===ty)) return true; return false; };
+function solidAt(x,y){ const tx=Math.floor(x),ty=Math.floor(y); if(tx<0||ty<0||tx>=MW||ty>=MH)return true; return MAP.sol[ty][tx]||gateClosedAt(tx,ty); }
+function blocked(x,y,r=.3){ return solidAt(x-r,y-r)||solidAt(x+r,y-r)||solidAt(x-r,y+r)||solidAt(x+r,y+r); }
+function zoneOf(x,y){ return ZONES.findIndex(z=>{const {x0,y0}=zr(z); return x>=x0&&x<x0+11&&y>=y0&&y<y0+10;}); }
+
+const cv=()=>$("#cv");
+let tileSize=64, cam={x:0,y:0};
+function resizeCanvas(){
+  const c=cv(), r=c.parentElement.getBoundingClientRect(), d=window.devicePixelRatio||1;
+  c.width=Math.round(r.width*d); c.height=Math.round(r.height*d);
+  tileSize=Math.max(46,Math.min(r.width,r.height)/8.5);
+}
+window.addEventListener("resize",()=>{ if(W&&W.on) resizeCanvas(); });
+
+function openWorld(){
+  show("world");
   if(musName!=="map") playMusic("map");
   $("#mapName").textContent="🧒 "+S.name;
   $("#mapStars").textContent="⭐ "+S.stars.reduce((a,b)=>a+b,0);
   $("#mapCount").textContent="📖 Lexikon "+(S.owned.length+S.caught.length)+"/"+DEX.length;
-  const area=$("#mapArea");
-  const pts=[START,...STATIONS];
-  let html=`<svg class="road" viewBox="0 0 100 100" preserveAspectRatio="none">
-    <polyline points="${pts.map(p=>p.x+","+p.y).join(" ")}" fill="none" stroke="#f3d9a4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="stroke-width:clamp(26px,5vmin,48px)"/>
-    <polyline points="${pts.map(p=>p.x+","+p.y).join(" ")}" fill="none" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" style="stroke-width:4px;stroke-dasharray:10 14" opacity=".8"/>
-  </svg>`;
-  DECOS.forEach(([e,x,y])=>html+=`<div class="deco" style="left:${x}%;top:${y}%">${e}</div>`);
-  html+=`<div class="deco" style="left:${START.x}%;top:${START.y}%">🏡</div>`;
-  STATIONS.forEach((st,i)=>{
-    const cls = i<S.station?"done":i===S.station?"next":"locked";
-    const stars = i<S.station ? `<div class="st">${"⭐".repeat(S.stars[i])}</div>` : (i===S.station?`<div class="tapme">Tippe hier!</div>`:"");
-    html+=`<button class="node ${cls}" data-i="${i}" style="left:${st.x}%;top:${st.y}%">${st.icon}${stars}<div class="lbl">${st.name}</div></button>`;
-  });
-  const cur = S.station===0?START:STATIONS[S.station-1];
-  html+=`<div id="token" style="left:${cur.x}%;top:${cur.y}%">${monSVG(S.partner)}</div>`;
-  area.innerHTML=html;
-  area.querySelectorAll(".node").forEach(n=>n.onclick=()=>{
-    const i=+n.dataset.i;
-    if(i===S.station) walkTo(i); else { SFX.tap(); n.classList.remove("shake"); void n.offsetWidth; n.classList.add("shake"); }
-  });
-  $("#team").innerHTML="Dein Team: "+monSVG(S.partner)+S.caught.map(monSVG).join("");
+  if(!W) newWorld();
+  const st=STATIONS[S.station];
+  $("#hint").innerHTML=`Finde <b>${MONS[S.picks[S.station]].name}</b> – ${st.icon} ${st.name}. Folge dem Pfeil! ➜`;
+  W.tx=W.ty=null; W.dir={x:0,y:0}; W.zone=-1;
+  resizeCanvas();
+  W.on=true; W.last=performance.now(); requestAnimationFrame(worldFrame);
 }
-let busy=false;
-async function walkTo(i){
-  if(busy)return; busy=true;
-  SFX.tap();
-  const t=$("#token"), st=STATIONS[i];
-  t.classList.add("walk"); t.style.left=st.x+"%"; t.style.top=st.y+"%";
-  await sleep(1400); t.classList.remove("walk");
+function worldFrame(now){
+  if(!W||!W.on)return;
+  const dt=Math.min(.05,(now-W.last)/1000); W.last=now; W.t+=dt;
+  updateWorld(dt); drawWorld();
+  if(W.on) requestAnimationFrame(worldFrame);
+}
+function updateWorld(dt){
+  // Bewegung
+  let vx=W.dir.x, vy=W.dir.y;
+  if(!vx&&!vy&&W.tx!=null){ const dx=W.tx-W.px, dy=W.ty-W.py, d=Math.hypot(dx,dy); if(d>.15){vx=dx/d;vy=dy/d;} }
+  const len=Math.hypot(vx,vy); W.moving=len>0;
+  if(len){ vx/=len; vy/=len; const sp=3.8*dt;
+    if(!blocked(W.px+vx*sp,W.py)) W.px+=vx*sp;
+    if(!blocked(W.px,W.py+vy*sp)) W.py+=vy*sp;
+    if(Math.abs(vx)>.2) W.face=vx>0?1:-1; }
+  // Gebiet betreten -> Name einblenden
+  const z=zoneOf(W.px,W.py);
+  if(z>=0&&z!==W.zone){ W.zone=z; const b=$("#zoneBanner"); b.textContent=STATIONS[z].icon+" "+STATIONS[z].name; b.classList.remove("show"); void b.offsetWidth; b.classList.add("show"); }
+  // Wortlinge laufen herum
+  W.mons.forEach(m=>{
+    if(m.i<S.station||m.boss)return;
+    m.timer-=dt;
+    if(m.timer<=0){ m.timer=1+Math.random()*1.5; const a=Math.random()*Math.PI*2, s=Math.random()<.35?0:1.1; m.vx=Math.cos(a)*s; m.vy=Math.sin(a)*s; }
+    const nx=m.x+m.vx*dt, ny=m.y+m.vy*dt;
+    if(Math.hypot(nx-m.hx,ny-m.hy)<1.8&&!blocked(nx,ny,.35)){ m.x=nx; m.y=ny; } else m.timer=0;
+  });
+  // Begegnung
+  const m=W.mons[S.station];
+  if(m&&Math.hypot(m.x-W.px,m.y-W.py)<.9) encounter(S.station);
+}
+function drawWorld(){
+  const c=cv(), x=c.getContext("2d"), d=window.devicePixelRatio||1, s=tileSize, cw=c.width/d, ch=c.height/d;
+  cam.x=Math.max(0,Math.min(MW*s-cw,W.px*s-cw/2)); cam.y=Math.max(0,Math.min(MH*s-ch,W.py*s-ch/2));
+  if(MW*s<cw)cam.x=(MW*s-cw)/2; if(MH*s<ch)cam.y=(MH*s-ch)/2;
+  x.setTransform(d,0,0,d,0,0); x.fillStyle="#3a8235"; x.fillRect(0,0,cw,ch);
+  x.save(); x.translate(-cam.x,-cam.y);
+  x.drawImage(OFF,0,0,MW*TS,MH*TS,0,0,MW*s,MH*s);
+  // geschlossene Tore
+  for(let i=S.station;i<5;i++) gateTiles(i).forEach(([tx,ty])=>{
+    x.fillStyle="#a8743a"; x.fillRect(tx*s+s*.08,ty*s+s*.2,s*.84,s*.14); x.fillRect(tx*s+s*.08,ty*s+s*.62,s*.84,s*.14);
+    x.fillStyle="#8a5a2b"; x.fillRect(tx*s+s*.12,ty*s+s*.08,s*.14,s*.84); x.fillRect(tx*s+s*.74,ty*s+s*.08,s*.14,s*.84);
+    x.font=`${s*.4}px ${EMOJI_FONT}`; x.textAlign="center"; x.textBaseline="middle"; x.fillText("🔒",tx*s+s/2,ty*s+s/2);
+  });
+  // Figuren (nach y sortiert)
+  const sprites=W.mons.filter(m=>m.i>=S.station).map(m=>({y:m.y,draw:()=>{
+    const bob=Math.sin(W.t*4+m.i)*s*.04, sz=s*(m.boss?1.7:1.05);
+    shadow(x,m.x*s,m.y*s+sz*.38,sz*.35);
+    const img=svgImg(m.key); if(img.complete) x.drawImage(img,m.x*s-sz/2,m.y*s-sz*.55+bob,sz,sz);
+    if(m.i===S.station){ x.font=`bold ${s*.5}px sans-serif`; x.textAlign="center"; x.fillStyle="#ff4d5e"; x.strokeStyle="#fff"; x.lineWidth=5;
+      const ay=m.y*s-sz*.6-s*.25+Math.sin(W.t*6)*s*.08; x.strokeText("!",m.x*s,ay); x.fillText("!",m.x*s,ay); }
+  }}));
+  sprites.push({y:W.py,draw:()=>{
+    const sz=s*1.05, hop=W.moving?Math.abs(Math.sin(W.t*12))*s*.12:Math.sin(W.t*3)*s*.03;
+    shadow(x,W.px*s,W.py*s+sz*.38,sz*.33);
+    const img=svgImg(S.partner);
+    if(img.complete){ x.save(); x.translate(W.px*s,W.py*s-sz*.55-hop); x.scale(-W.face,1); x.drawImage(img,-sz/2,0,sz,sz); x.restore(); }
+  }});
+  sprites.sort((a,b)=>a.y-b.y).forEach(o=>o.draw());
+  x.restore();
+  // Pfeil zum Ziel
+  const m=W.mons[S.station];
+  if(m){ const mx=m.x*s-cam.x, my=m.y*s-cam.y, pad=s*.9;
+    if(mx<0||my<0||mx>cw||my>ch){
+      const px=W.px*s-cam.x, py=W.py*s-cam.y, a=Math.atan2(my-py,mx-px);
+      const ex=Math.max(pad,Math.min(cw-pad,mx)), ey=Math.max(pad,Math.min(ch-pad,my));
+      x.save(); x.translate(ex,ey); x.rotate(a); const p=1+Math.sin(W.t*6)*.12; x.scale(p,p);
+      x.fillStyle="#ff7a3d"; x.strokeStyle="#fff"; x.lineWidth=4; x.beginPath();
+      x.moveTo(s*.45,0); x.lineTo(-s*.25,-s*.3); x.lineTo(-s*.1,0); x.lineTo(-s*.25,s*.3); x.closePath(); x.stroke(); x.fill(); x.restore();
+    }
+  }
+}
+function shadow(x,cx,cy,r){ x.fillStyle="rgba(0,0,0,.18)"; x.beginPath(); x.ellipse(cx,cy,r,r*.35,0,0,Math.PI*2); x.fill(); }
+async function encounter(i){
+  W.on=false; W.tx=W.ty=null; W.dir={x:0,y:0};
   stopMusic(); SFX.wild();
   const f=document.createElement("div"); f.className="flashScreen"; document.body.appendChild(f);
-  await sleep(1000); f.remove(); busy=false;
+  await sleep(1000); f.remove();
   startBattle(i);
 }
+// Steuerung: Finger auf die Welt halten = dorthin laufen; Steuerkreuz; Pfeiltasten
+(function(){
+  const c=$("#cv"); let down=false;
+  const setT=e=>{ const r=c.getBoundingClientRect(); W.tx=(e.clientX-r.left+cam.x)/tileSize; W.ty=(e.clientY-r.top+cam.y)/tileSize; };
+  c.addEventListener("pointerdown",e=>{ if(!W||!W.on)return; down=true; c.setPointerCapture(e.pointerId); setT(e); audio(); });
+  c.addEventListener("pointermove",e=>{ if(down&&W&&W.on) setT(e); });
+  const up=()=>{ down=false; if(W){W.tx=W.ty=null;} };
+  c.addEventListener("pointerup",up); c.addEventListener("pointercancel",up);
+  document.querySelectorAll(".dpad button").forEach(b=>{
+    const [dx,dy]=b.dataset.d.split(",").map(Number);
+    b.addEventListener("pointerdown",e=>{ e.preventDefault(); if(W){W.dir={x:dx,y:dy}; W.tx=null;} b.setPointerCapture(e.pointerId); audio(); });
+    const stop=()=>{ if(W)W.dir={x:0,y:0}; };
+    b.addEventListener("pointerup",stop); b.addEventListener("pointercancel",stop); b.addEventListener("lostpointercapture",stop);
+  });
+  const K={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}, held=new Set();
+  const upd=()=>{ if(!W)return; let x=0,y=0; held.forEach(k=>{x+=K[k][0];y+=K[k][1];}); W.dir={x,y}; };
+  addEventListener("keydown",e=>{ if(K[e.key]){held.add(e.key);upd();e.preventDefault();} });
+  addEventListener("keyup",e=>{ if(K[e.key]){held.delete(e.key);upd();} });
+})();
 
 /* ============ LEXIKON ============ */
 $("#mapCount").onclick=()=>{
@@ -674,7 +869,7 @@ function makeOptions(w){
 function banner(html){ const d=document.createElement("div"); d.className="banner"; d.innerHTML=html; $("#arena").appendChild(d); setTimeout(()=>d.remove(),1700); }
 
 async function startBattle(i){
-  const st=STATIONS[i], mon=pick(st.mons);
+  const st=STATIONS[i], mon=S.picks[i];
   B={i,st,mon,queue:buildQueue(st),hp:0,max:0,hearts:HERZEN,mistakes:0,asked:0};
   B.max=B.hp=B.queue.length;
   if(!S.seen.includes(mon)) S.seen.push(mon);
@@ -736,6 +931,87 @@ function popText(txt,color,leftPct,topPct){
 }
 function anim(el,cls){ el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(()=>el.classList.remove(cls),500); }
 
+/* ============ ATTACKEN-ANIMATIONEN ============ */
+function monCenter(el){ const a=$("#arena").getBoundingClientRect(), r=el.getBoundingClientRect(); return {x:r.left-a.left+r.width/2, y:r.top-a.top+r.height*.55, w:r.width}; }
+function fxEl(txt,x,y,size,color){
+  const d=document.createElement("div"); d.className="fx"; d.textContent=txt; d.style.left=x+"px"; d.style.top=y+"px"; d.style.fontSize=size+"px";
+  if(color){ d.style.color=color; d.style.fontWeight="900"; d.style.textShadow="0 3px 0 #fff,0 0 12px #fff"; }
+  $("#arena").appendChild(d); return d;
+}
+const T0="translate(-50%,-50%)";
+function animEl(el,frames,opt){ const a=el.animate(frames,{fill:"forwards",...opt}); a.onfinish=()=>el.remove(); return a; }
+function projectile(chars,from,to,{n=5,size=40,spread=.25,dur=520,stagger=80,arc=.25,spin=0,colors=null}={}){
+  for(let i=0;i<n;i++){
+    const c=Array.isArray(chars)?chars[i%chars.length]:chars;
+    const e=fxEl(c,from.x,from.y,size*(0.8+Math.random()*.4),colors?colors[i%colors.length]:null);
+    const ox=(Math.random()-.5)*to.w*spread, oy=(Math.random()-.5)*to.w*spread, dx=to.x-from.x+ox, dy=to.y-from.y+oy, lift=-Math.abs(dx)*arc;
+    animEl(e,[{transform:`${T0} translate(0,0) scale(.5) rotate(0deg)`,opacity:0},
+              {transform:`${T0} translate(${dx*.5}px,${dy*.5+lift}px) scale(1.1) rotate(${spin/2}deg)`,opacity:1,offset:.5},
+              {transform:`${T0} translate(${dx}px,${dy}px) scale(1) rotate(${spin}deg)`,opacity:1}],
+         {duration:dur,delay:i*stagger,easing:"ease-in"});
+  }
+  return sleep(dur+(n-1)*stagger);
+}
+function burst(chars,at,{n=10,size=36,radius=.7,dur=650,colors=null}={}){
+  for(let i=0;i<n;i++){
+    const c=Array.isArray(chars)?chars[i%chars.length]:chars, a=Math.PI*2*i/n+Math.random()*.4, r=at.w*radius*(0.6+Math.random()*.5);
+    const e=fxEl(c,at.x,at.y,size*(0.7+Math.random()*.6),colors?colors[i%colors.length]:null);
+    animEl(e,[{transform:`${T0} scale(.3)`,opacity:1},{transform:`${T0} translate(${Math.cos(a)*r}px,${Math.sin(a)*r}px) scale(1.2) rotate(${(Math.random()-.5)*180}deg)`,opacity:0}],
+      {duration:dur,easing:"cubic-bezier(.2,.8,.3,1)"});
+  }
+  return sleep(dur*.6);
+}
+function rain(chars,at,{n=6,size=44,dur=420,stagger=90}={}){
+  for(let i=0;i<n;i++){
+    const c=Array.isArray(chars)?chars[i%chars.length]:chars, ox=(Math.random()-.5)*at.w*.8;
+    const e=fxEl(c,at.x+ox,at.y-at.w*1.2,size*(0.8+Math.random()*.5));
+    animEl(e,[{transform:`${T0} translateY(0) scale(.8)`,opacity:0},{transform:`${T0} translateY(${at.w*.3}px)`,opacity:1,offset:.3},{transform:`${T0} translateY(${at.w*1.2}px) scale(1.2)`,opacity:.9}],
+      {duration:dur,delay:i*stagger,easing:"ease-in"});
+  }
+  return sleep(dur+(n-1)*stagger);
+}
+function swirl(chars,at,{n=8,size=36,dur=900}={}){
+  for(let i=0;i<n;i++){
+    const c=Array.isArray(chars)?chars[i%chars.length]:chars, e=fxEl(c,at.x,at.y,size), a0=Math.PI*2*i/n, R=at.w*.6, fr=[];
+    for(let k=0;k<=10;k++){ const a=a0+k/10*Math.PI*3, r=R*(1-k/10*.8); fr.push({transform:`${T0} translate(${Math.cos(a)*r}px,${Math.sin(a)*r*.6}px) rotate(${k*60}deg)`,opacity:k===10?0:1}); }
+    animEl(e,fr,{duration:dur,easing:"linear"});
+  }
+  return sleep(dur*.8);
+}
+function ring(at,color,{dur=600,delay=0}={}){
+  const d=document.createElement("div"); d.className="fxring"; d.style.left=at.x+"px"; d.style.top=at.y+"px"; d.style.borderColor=color;
+  d.style.width=d.style.height=at.w*.4+"px"; $("#arena").appendChild(d);
+  animEl(d,[{transform:`${T0} scale(.3)`,opacity:1},{transform:`${T0} scale(3)`,opacity:0}],{duration:dur,delay,easing:"ease-out"});
+}
+function beam(from,to,color,{dur=450,thick=.14}={}){
+  const d=document.createElement("div"); d.className="fxbeam"; const dx=to.x-from.x, dy=to.y-from.y, L=Math.hypot(dx,dy);
+  Object.assign(d.style,{left:from.x+"px",top:from.y+"px",width:L+"px",height:to.w*thick+"px",background:`linear-gradient(90deg,transparent,${color},#fff)`,
+    transform:`translateY(-50%) rotate(${Math.atan2(dy,dx)}rad)`});
+  $("#arena").appendChild(d);
+  animEl(d,[{clipPath:"inset(0 100% 0 0)",opacity:1},{clipPath:"inset(0 0 0 0)",opacity:1,offset:.5},{clipPath:"inset(0 0 0 0)",opacity:0}],{duration:dur});
+  return sleep(dur*.55);
+}
+function arenaFlash(color,times=1){ const a=$("#arena"); for(let i=0;i<times;i++){ const f=document.createElement("div"); f.className="fxflash"; f.style.background=color; a.appendChild(f);
+  animEl(f,[{opacity:0},{opacity:.55},{opacity:0}],{duration:260,delay:i*280}); } }
+function arenaShake(){ anim($("#arena"),"shake"); }
+const LETTERS=["A","B","C","Z","W","E","Q"], LCOL=["#ff4d5e","#7a5cff","#2fbf71","#ff7a3d","#1e8ef0","#e6b800"];
+async function attackFx(type,fromEl,toEl){
+  const f=monCenter(fromEl), t=monCenter(toEl), S0=t.w*.28;
+  switch(type){
+    case "Feuer":  await projectile("🔥",f,t,{n:6,size:S0}); arenaFlash("#ff7a3d"); burst(["🔥","💥"],t,{n:12,size:S0*.9}); break;
+    case "Wasser": beam(f,t,"#4fb3ef"); await projectile("💧",f,t,{n:9,size:S0*.8,stagger:45,arc:.1}); ring(t,"#4fb3ef"); burst(["🫧","💧"],t,{n:10,size:S0*.7}); break;
+    case "Pflanze":await projectile("🍃",f,t,{n:5,size:S0*.8,spin:540}); swirl(["🍃","🌿"],t,{n:8,size:S0*.8}); await sleep(400); burst(["🌸","🍃"],t,{n:8,size:S0*.7}); break;
+    case "Elektro":await rain("⚡",t,{n:5,size:S0*1.2}); arenaFlash("#ffe14d",2); burst("✨",t,{n:8,size:S0*.6}); break;
+    case "Käfer":  await projectile("🐞",f,t,{n:5,size:S0*.7,arc:.5}); burst("✳️",t,{n:8,size:S0*.6}); break;
+    case "Psycho": ring(f,"#d64fa0"); await projectile("🔮",f,t,{n:3,size:S0}); ring(t,"#d64fa0"); ring(t,"#a46cff",{delay:150}); ring(t,"#ff7ad1",{delay:300}); break;
+    case "Fee":    await rain(["✨","💖"],t,{n:7,size:S0*.8,stagger:60}); burst(["💖","✨"],t,{n:10,size:S0*.6}); break;
+    case "Boden":  await rain("🪨",t,{n:5,size:S0}); arenaShake(); burst("💨",t,{n:6,size:S0*.7}); break;
+    case "Stahl":  await projectile("⚙️",f,t,{n:3,size:S0*1.1,spin:900,arc:.1}); burst(["⚙️","💥"],t,{n:8,size:S0*.6}); break;
+    case "Drache": await projectile(LETTERS,f,t,{n:7,size:S0*1.1,stagger:60,colors:LCOL}); arenaFlash("#7a5cff"); arenaShake(); ring(t,"#7a5cff"); burst(["🔥","✨"],t,{n:10,size:S0*.8}); break;
+    default:       await projectile("⭐",f,t,{n:3,size:S0}); burst(["⭐","💥"],t,{n:8,size:S0*.7});
+  }
+}
+
 const LOB=["Super!","Klasse!","Richtig!","Toll gemacht!","Spitze!","Wow!","Genau!","Prima!"];
 async function answer(btn,o){
   if(lock)return; lock=true;
@@ -749,9 +1025,8 @@ async function answer(btn,o){
     speak(w.en);
     await sleep(500);
     $("#qText").innerHTML=`<b>${MONS[S.partner].name}</b> setzt <b style="color:${pt.color}">${pick(pt.atk)}</b> ein! ${pt.icon}`;
-    anim($("#pMon"),"lungeR"); await sleep(200);
+    anim($("#pMon"),"lungeR"); await attackFx(MONS[S.partner].type,$("#pMon"),$("#eMon"));
     SFX.hit(); anim($("#eMon"),"shake"); anim($("#eMon"),"flash");
-    popText(pt.icon,null,74,30); setTimeout(()=>popText("💥",null,70,45),150);
     B.hp--; updateBars();
     $("#answers").innerHTML=""; $("#qPic").innerHTML="";
     $("#msg").innerHTML=`<span class="big">${pick(LOB)} 🎉</span><br>${pair}`;
@@ -765,7 +1040,7 @@ async function answer(btn,o){
     SFX.bad(); S.wrong++; B.mistakes++;
     await sleep(450);
     $("#qText").innerHTML=`<b>${MONS[B.mon].name}</b> setzt <b style="color:${et.color}">${pick(et.atk)}</b> ein! ${et.icon}`;
-    anim($("#eMon"),"lungeL"); await sleep(200);
+    anim($("#eMon"),"lungeL"); await attackFx(MONS[B.mon].type,$("#eMon"),$("#pMon"));
     SFX.hit(); anim($("#pMon"),"shake"); popText("💫",null,20,35);
     B.hearts--; updateBars();
     $("#answers").innerHTML=""; $("#qPic").innerHTML="";
@@ -810,14 +1085,14 @@ async function winBattle(){
   if(st.boss){ return finale(); }
   if(EVO_NACH.includes(S.station) && MONS[S.partner].evo) await evolve();
   const tips=[
-    "Toll, {name}! Weiter geht's zum Regenbogenwald!",
-    "Super! Als Nächstes geht es an den Zahlenstrand.",
-    "Prima! Hast du Hunger? Auf zum Picknickplatz!",
-    "Klasse! Jetzt geht es in die Spielzeugstadt.",
-    "Fantastisch! Nur noch einer: Lexikus wartet in der Schule. Bist du bereit?",
+    "Toll, {name}! Das Tor zum <b>Regenbogenwald</b> ist jetzt offen! 🔓",
+    "Super! Das Tor zum <b>Zahlenstrand</b> ist offen. 🔓",
+    "Prima! Hast du Hunger? Das Tor zum <b>Picknickplatz</b> ist offen! 🔓",
+    "Klasse! Jetzt geht es in die <b>Spielzeugstadt</b>. 🔓",
+    "Fantastisch! Nur noch einer: Lexikus wartet vor der <b>Schule</b>. Bist du bereit? 🔓",
   ];
   await dialog([tips[B.i]]);
-  openMap();
+  openWorld();
 }
 
 /* ============ ENTWICKLUNG ============ */

@@ -1,7 +1,7 @@
 # Wortwelt-Abenteuer 🦉
 
 Ein Englisch-Vokabelspiel für Kinder der 4. Klasse (Tag der offenen Tür).
-Ein Kind wählt einen Partner-Wortling, läuft über eine Karte und trifft
+Ein Kind wählt einen Partner-Wortling, läuft frei durch eine 2D-Welt (Finger halten oder Steuerkreuz) und trifft
 6 Wortlinge. Jeder Wortling stellt Vokabelfragen – richtige Antworten sind
 Angriffe. Am Ende gibt es eine Urkunde. Spieldauer: ca. 10 Minuten.
 
@@ -9,7 +9,7 @@ Angriffe. Am Ende gibt es eine Urkunde. Spieldauer: ca. 10 Minuten.
 - **Für das iPad gemacht:** große Knöpfe, Hoch- und Querformat.
 - **Ton:** Die englischen Wörter werden vorgelesen (🔊). Die deutschen Texte kann man sich auch vorlesen lassen.
   Bitte Lautstärke am iPad einschalten und den Lautlos-Schalter ausschalten.
-- **Wie ein Monster-Abenteuer:** Typen (Feuer, Wasser, Pflanze …) mit Attacken, der Partner entwickelt sich nach dem 3. und 5. Sieg,
+- **Wie ein Monster-Abenteuer:** 6 Gebiete mit Toren, die sich nach jedem Sieg öffnen, Pfeil zum nächsten Ziel, animierte Attacken je Typ, Typen (Feuer, Wasser, Pflanze …) mit Attacken, der Partner entwickelt sich nach dem 3. und 5. Sieg,
   an jedem Ort taucht zufällig einer von 3 Wortlingen auf, Wortling-Lexikon mit 25 Nummern zum Sammeln, eigene Kampf- und Kartenmusik.
 - **Niemand verliert:** Bei falschen Antworten wird das richtige Wort gezeigt und später noch einmal gefragt.
   Sind alle Herzen weg, gibt Professorin Eule einen Heiltrank.
