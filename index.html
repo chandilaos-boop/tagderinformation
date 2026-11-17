@@ -1153,7 +1153,13 @@ $("#muteBtn").onclick=()=>{
   if(muted){ if(window.speechSynthesis)speechSynthesis.cancel(); const n=musName; stopMusic(); musName=n; }
   else if(musName) playMusic(musName);
 };
-$("#resetBtn").onclick=()=>{ if(confirm("Neues Spiel starten? Der aktuelle Spielstand geht verloren.")){ busy=false; lock=false; newGame(); } };
+let resetArm=0;
+$("#resetBtn").onclick=()=>{ // zweimal tippen = neues Spiel (kein confirm(), funktioniert überall)
+  const b=$("#resetBtn");
+  if(Date.now()-resetArm<3000){ resetArm=0; b.textContent="⟲"; b.style.width=""; busy=false; lock=false; newGame(); return; }
+  resetArm=Date.now(); b.textContent="Nochmal tippen = Neustart"; b.style.width="auto"; b.style.padding="0 12px"; b.style.borderRadius="20px"; b.style.opacity="1";
+  setTimeout(()=>{ if(resetArm&&Date.now()-resetArm>=2900){ resetArm=0; b.textContent="⟲"; b.style.width=""; b.style.padding=""; b.style.borderRadius=""; b.style.opacity=""; } },3000);
+};
 document.addEventListener("gesturestart",e=>e.preventDefault());
 document.addEventListener("dblclick",e=>e.preventDefault());
 
