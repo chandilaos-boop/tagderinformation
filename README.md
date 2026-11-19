@@ -12,7 +12,8 @@ Angriffe. Am Ende gibt es eine Urkunde. Spieldauer: ca. 10 Minuten.
 - **Wie ein Monster-Abenteuer:** 6 Gebiete mit Toren, die sich nach jedem Sieg öffnen, Pfeil zum nächsten Ziel, animierte Attacken je Typ, Typen (Feuer, Wasser, Pflanze …) mit Attacken, der Partner entwickelt sich nach dem 3. und 5. Sieg,
   an jedem Ort taucht zufällig einer von 3 Wortlingen auf, Wortling-Lexikon mit 25 Nummern zum Sammeln, eigene Kampf- und Kartenmusik.
 - **Niemand verliert:** Bei falschen Antworten wird das richtige Wort gezeigt und später noch einmal gefragt.
-  Sind alle Herzen weg, gibt Professorin Eule einen Heiltrank.
+  Der Partner hat 100 KP, jede falsche Antwort kostet 20 KP (also ca. 5 Attacken).
+  In jedem Gebiet liegt ein Trank 🧪, der die KP wieder auffüllt. Bei 0 KP gibt Professorin Eule einen Heiltrank.
 
 ## Themen
 

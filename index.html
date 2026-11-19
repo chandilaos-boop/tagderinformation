@@ -135,7 +135,12 @@ button{font-family:inherit;color:inherit;border:0;cursor:pointer;touch-action:ma
 #eStatus{position:absolute;right:10%;top:12%;width:20%;text-align:center;font-size:clamp(26px,5vmin,48px);z-index:4;pointer-events:none}
 #eStatus.dizzy{animation:dizzy 1.2s linear infinite}
 @keyframes dizzy{0%{transform:rotate(0) translateX(10px) rotate(0)}100%{transform:rotate(360deg) translateX(10px) rotate(-360deg)}}
-#hearts{font-size:clamp(18px,3vmin,28px);letter-spacing:.1em}
+.hpbox.partner .bar{min-width:clamp(140px,22vw,240px)}
+#potToast{position:absolute;top:16%;left:50%;transform:translateX(-50%);background:var(--good);color:#fff;font-weight:900;font-size:clamp(20px,4vmin,36px);
+  padding:.3em 1em;border-radius:999px;opacity:0;pointer-events:none;white-space:nowrap;box-shadow:0 5px 0 rgba(43,35,80,.25)}
+#potToast.show{animation:zoneIn 2.4s forwards}
+#potToast.info{background:var(--accent2)}
+#mapKp.low{background:#ffd6dc;animation:bob 1s infinite}
 .qcount{font-size:.75em;opacity:.7;font-weight:700}
 .shake{animation:shake .45s}
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px)}40%{transform:translateX(12px)}60%{transform:translateX(-8px)}80%{transform:translateX(6px)}}
@@ -284,6 +289,7 @@ button.pill{font:inherit;font-weight:800;color:var(--ink)}
   <div class="topbar">
     <span class="pill" id="mapName">🧒</span>
     <span class="sp"></span>
+    <span class="pill" id="mapKp">❤️ KP 100/100</span>
     <span class="pill" id="mapStars">⭐ 0</span>
     <button class="pill" id="mapCount">📖 Lexikon</button>
   </div>
@@ -291,6 +297,7 @@ button.pill{font:inherit;font-weight:800;color:var(--ink)}
     <canvas id="cv"></canvas>
     <div id="zoneBanner"></div>
     <div id="hint"></div>
+    <div id="potToast"></div>
     <div class="dpad">
       <button data-d="0,-1" style="grid-area:u">▲</button>
       <button data-d="-1,0" style="grid-area:l">◀</button>
@@ -307,7 +314,7 @@ button.pill{font:inherit;font-weight:800;color:var(--ink)}
     <div class="hpbox enemy"><span id="eName"></span> <span class="qcount" id="qCount"></span><div class="bar"><i class="ghost" id="eHpGhost"></i><i id="eHp"></i></div><div class="hpnum" id="eHpNum"></div></div>
     <div class="mon enemy" id="eMon"></div>
     <div class="mon partner" id="pMon"></div>
-    <div class="hpbox partner"><span id="pName"></span><div id="hearts"></div></div>
+    <div class="hpbox partner"><span id="pName"></span><div class="bar"><i class="ghost" id="pHpGhost"></i><i id="pHp"></i></div><div class="hpnum" id="pHpNum"></div></div>
     <div id="ball"></div>
     <div id="eStatus"></div>
   </div>
@@ -359,7 +366,9 @@ button.pill{font:inherit;font-weight:800;color:var(--ink)}
 const SCHULNAME = "unserer Gesamtschule";   // z. B. "der Gesamtschule Musterstadt"
 const FRAGEN_PRO_KAMPF = 4;                // normale Wortlinge
 const FRAGEN_BOSS = 6;                     // Endgegner
-const HERZEN = 5;
+const KP_MAX = 100;                        // KP des Partners
+const SCHADEN = 20;                        // Schaden pro falscher Antwort (100 KP = 5 Attacken)
+const TRANK_KP = 100;                      // so viele KP füllt ein Trank auf
 
 /* ============ VOKABELN ============ */
 const THEMES = {
@@ -712,7 +721,7 @@ function dialog(lines, face="🦉"){
 /* ============ SPIELSTAND ============ */
 let S;
 function newGame(){
-  S={name:"",partner:null,station:0,stars:[],caught:[],seen:[],owned:[],correct:0,wrong:0,picks:STATIONS.map(st=>pick(st.mons))};
+  S={name:"",partner:null,station:0,stars:[],caught:[],seen:[],owned:[],correct:0,wrong:0,kp:KP_MAX,picks:STATIONS.map(st=>pick(st.mons))};
   if(W)W.on=false; W=null;
   $("#nameInput").value="";
   stopMusic(); musName=null;
@@ -734,6 +743,7 @@ $("#nameBtn").onclick=async()=>{
     "Hier leben die <b>Wortlinge</b>. Das sind kleine Monster, die Englisch lieben.",
     "Wenn du einen Wortling triffst, stellt er dir eine <b>Frage</b>. Wählst du die richtige Antwort, greift dein Partner an! 💥",
     "Tippe auf 🔊, dann hörst du, wie man das Wort auf Englisch spricht.",
+    "Dein Partner hat <b>KP</b> (Kraftpunkte). Bei einer falschen Antwort verliert er KP. Auf dem Weg findest du <b>Tränke 🧪</b>, die deine KP wieder auffüllen!",
     "Und wenn dein Partner stark genug ist, <b>entwickelt</b> er sich! ✨",
     "Ganz am Ende wartet der große <b>Lexikus</b> in der Schule. Zuerst brauchst du aber einen Partner. Such dir einen aus!"
   ]);
@@ -841,8 +851,28 @@ function newWorld(){
   const {x0,y0}=zr(ZONES[0]);
   W={px:x0+5.5,py:y0+8.5,tx:null,ty:null,dir:{x:0,y:0},face:1,moving:false,on:false,zone:-1,t:0,
      mons:STATIONS.map((st,i)=>{ const z=zr(ZONES[i]); const hx=z.x0+MON_HOME[i][0]+.5, hy=z.y0+MON_HOME[i][1]+.5;
-       return {i,key:S.picks[i],hx,hy,x:hx,y:hy,vx:0,vy:0,timer:0,boss:!!st.boss}; })};
+       return {i,key:S.picks[i],hx,hy,x:hx,y:hy,vx:0,vy:0,timer:0,boss:!!st.boss}; }),
+     potions:placePotions(), toastT:0};
 }
+// Ein Trank pro Gebiet, an einer erreichbaren Stelle abseits des Weges
+const POT_PREF=[[9,1],[1,1],[9,8],[1,1],[1,8],[9,8]];
+function placePotions(){
+  const {x0:sx,y0:sy}=zr(ZONES[0]), start=[sx+5,sy+8], seen=new Set([start+""]), q=[start];
+  while(q.length){ const [x,y]=q.shift(); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{ const nx=x+dx,ny=y+dy,k=nx+","+ny;
+    if(nx>=0&&ny>=0&&nx<MW&&ny<MH&&!seen.has(k)&&!MAP.sol[ny][nx]){ seen.add(k); q.push([nx,ny]); } }); }
+  return ZONES.map((z,i)=>{ const {x0,y0}=zr(z), [px,py]=[x0+POT_PREF[i][0],y0+POT_PREF[i][1]];
+    const cand=[]; for(let y=y0;y<y0+10;y++)for(let x=x0;x<x0+11;x++) if(seen.has(x+","+y)&&!(MAP.dec[y][x]&&MAP.dec[y][x]!=="_")&&Math.hypot(x-(x0+MON_HOME[i][0]),y-(y0+MON_HOME[i][1]))>2.5&&!(x===start[0]&&y===start[1])) cand.push([x,y]);
+    cand.sort((a,b)=>Math.hypot(a[0]-px,a[1]-py)-Math.hypot(b[0]-px,b[1]-py));
+    const [x,y]=cand[0]; return {x:x+.5,y:y+.5,taken:false}; });
+}
+function updateHint(){
+  const st=STATIONS[S.station];
+  $("#hint").innerHTML = S.kp<=40 && W.potions.some(p=>!p.taken)
+    ? `Deine KP sind niedrig! Such einen <b>Trank 🧪</b> – oder finde <b>${MONS[S.picks[S.station]].name}</b> ➜`
+    : `Finde <b>${MONS[S.picks[S.station]].name}</b> – ${st.icon} ${st.name}. Folge dem Pfeil! ➜`;
+}
+function potToast(html,info){ const t=$("#potToast"); t.innerHTML=html; t.className=info?"info":""; void t.offsetWidth; t.classList.add("show"); }
+function updateKpPill(){ const el=$("#mapKp"); el.textContent=`❤️ KP ${S.kp}/${KP_MAX}`; el.classList.toggle("low",S.kp<=40); }
 const gateClosedAt=(tx,ty)=>{ for(let i=S.station;i<5;i++) if(gateTiles(i).some(([x,y])=>x===tx&&y===ty)) return true; return false; };
 function solidAt(x,y){ const tx=Math.floor(x),ty=Math.floor(y); if(tx<0||ty<0||tx>=MW||ty>=MH)return true; return MAP.sol[ty][tx]||gateClosedAt(tx,ty); }
 function blocked(x,y,r=.3){ return solidAt(x-r,y-r)||solidAt(x+r,y-r)||solidAt(x-r,y+r)||solidAt(x+r,y+r); }
@@ -864,8 +894,7 @@ function openWorld(){
   $("#mapStars").textContent="⭐ "+S.stars.reduce((a,b)=>a+b,0);
   $("#mapCount").textContent="📖 Lexikon "+(S.owned.length+S.caught.length)+"/"+DEX.length;
   if(!W) newWorld();
-  const st=STATIONS[S.station];
-  $("#hint").innerHTML=`Finde <b>${MONS[S.picks[S.station]].name}</b> – ${st.icon} ${st.name}. Folge dem Pfeil! ➜`;
+  updateHint(); updateKpPill();
   W.tx=W.ty=null; W.dir={x:0,y:0}; W.zone=-1;
   resizeCanvas();
   W.on=true; W.last=performance.now(); requestAnimationFrame(worldFrame);
@@ -896,6 +925,14 @@ function updateWorld(dt){
     const nx=m.x+m.vx*dt, ny=m.y+m.vy*dt;
     if(Math.hypot(nx-m.hx,ny-m.hy)<1.8&&!blocked(nx,ny,.35)){ m.x=nx; m.y=ny; } else m.timer=0;
   });
+  // Tränke einsammeln
+  W.toastT-=dt;
+  W.potions.forEach(p=>{
+    if(p.taken||Math.hypot(p.x-W.px,p.y-W.py)>.7) return;
+    if(S.kp>=KP_MAX){ if(W.toastT<=0){ potToast("KP sind voll – hol den Trank später! 🧪",true); W.toastT=3; } return; }
+    p.taken=true; const vor=S.kp; S.kp=Math.min(KP_MAX,S.kp+TRANK_KP);
+    SFX.good(); potToast(`🧪 Trank! +${S.kp-vor} KP`); updateKpPill(); updateHint();
+  });
   // Begegnung
   const m=W.mons[S.station];
   if(m&&Math.hypot(m.x-W.px,m.y-W.py)<.9) encounter(S.station);
@@ -913,6 +950,10 @@ function drawWorld(){
     x.fillStyle="#8a5a2b"; x.fillRect(tx*s+s*.12,ty*s+s*.08,s*.14,s*.84); x.fillRect(tx*s+s*.74,ty*s+s*.08,s*.14,s*.84);
     x.font=`${s*.4}px ${EMOJI_FONT}`; x.textAlign="center"; x.textBaseline="middle"; x.fillText("🔒",tx*s+s/2,ty*s+s/2);
   });
+  // Tränke
+  W.potions.forEach(p=>{ if(p.taken)return; const bob=Math.sin(W.t*3+p.x)*s*.07;
+    x.fillStyle="rgba(120,255,200,.35)"; x.beginPath(); x.arc(p.x*s,p.y*s,s*(.42+Math.sin(W.t*4)*.05),0,Math.PI*2); x.fill();
+    x.font=`${s*.62}px ${EMOJI_FONT}`; x.textAlign="center"; x.textBaseline="middle"; x.fillText("🧪",p.x*s,p.y*s-s*.05+bob); });
   // Figuren (nach y sortiert)
   const sprites=W.mons.filter(m=>m.i>=S.station).map(m=>({y:m.y,draw:()=>{
     const bob=Math.sin(W.t*4+m.i)*s*.04, sz=s*(m.boss?1.7:1.05);
@@ -1003,7 +1044,7 @@ function banner(html){ const d=document.createElement("div"); d.className="banne
 
 async function startBattle(i){
   const st=STATIONS[i], mon=S.picks[i];
-  B={i,st,mon,queue:buildQueue(st),hp:0,max:0,hearts:HERZEN,mistakes:0,asked:0};
+  B={i,st,mon,queue:buildQueue(st),hp:0,max:0,mistakes:0,asked:0};
   B.max=B.hp=B.queue.length;
   if(!S.seen.includes(mon)) S.seen.push(mon);
   show("battle");
@@ -1034,7 +1075,10 @@ function updateBars(){
   $("#eHpNum").textContent=`KP ${Math.round(pct)} / 100`;
   const stt=$("#eStatus"); stt.textContent = B.hp<=0?"":pct<=34?"💫 💫":pct<=67?"💦":""; stt.className = pct<=34&&B.hp>0?"dizzy":"";
   $("#eHp").style.background = B.hp/B.max>.5?"var(--good)":B.hp/B.max>.25?"var(--gold)":"var(--bad)";
-  $("#hearts").textContent="❤️".repeat(B.hearts)+"🤍".repeat(HERZEN-B.hearts);
+  const pp=S.kp/KP_MAX*100;
+  $("#pHp").style.width=pp+"%"; $("#pHpGhost").style.width=pp+"%";
+  $("#pHp").style.background = pp>50?"var(--good)":pp>25?"var(--gold)":"var(--bad)";
+  $("#pHpNum").textContent=`KP ${S.kp} / ${KP_MAX}`;
   $("#qCount").textContent = `(${B.max-B.hp}/${B.max})`;
 }
 function clearPanel(){ $("#qText").innerHTML=""; $("#qPic").innerHTML=""; $("#answers").innerHTML=""; $("#msg").innerHTML="";
@@ -1183,8 +1227,8 @@ async function answer(btn,o){
     await sleep(450);
     $("#qText").innerHTML=`<b>${MONS[B.mon].name}</b> setzt <b style="color:${et.color}">${pick(et.atk)}</b> ein! ${et.icon}`;
     anim($("#eMon"),"lungeL"); await attackFx(MONS[B.mon].type,$("#eMon"),$("#pMon"));
-    SFX.hit(); takeHit($("#pMon"),"knockL","-1 ❤️","Autsch!",$(".hpbox.partner"));
-    B.hearts--; updateBars();
+    SFX.hit(); takeHit($("#pMon"),"knockL",`-${SCHADEN}`,"Autsch!",$(".hpbox.partner"));
+    S.kp=Math.max(0,S.kp-SCHADEN); updateBars();
     $("#answers").innerHTML=""; $("#qPic").innerHTML="";
     $("#msg").innerHTML=`<span class="big">Fast! 🙂</span><br>Richtig ist: ${pair}<br><small>Das Wort kommt gleich noch einmal.</small>`;
     speak(w.en);
@@ -1192,9 +1236,9 @@ async function answer(btn,o){
     const nt = pick(QTYPES.filter(t=>t!==B.cur.t));
     B.queue.splice(Math.min(1,B.queue.length),0,{w,t:nt});
     await sleep(2800);
-    if(B.hearts<=0){
-      await dialog([`Oh, <b>${MONS[S.partner].name}</b> ist ein bisschen müde.`,"Hier ist ein Heiltrank! 🧪 Jetzt geht es weiter. Du schaffst das!"]);
-      B.hearts=HERZEN; updateBars();
+    if(S.kp<=0){
+      await dialog([`Oh, <b>${MONS[S.partner].name}</b> hat keine KP mehr und ist müde.`,"Hier ist ein Heiltrank! 🧪 Jetzt geht es weiter. Du schaffst das!"]);
+      S.kp=KP_MAX; SFX.good(); updateBars();
     }
     nextQuestion();
   }
